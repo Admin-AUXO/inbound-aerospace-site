@@ -1,7 +1,11 @@
 ---
 import { url } from '../lib/url';
 ---
-<div class="earth" aria-hidden="true" hidden>
+<div class="earth" aria-hidden="true">
+  <picture class="earth__poster">
+    <source media="(max-aspect-ratio: 1/1)" srcset={url('/earth-poster-narrow.webp')} />
+    <img src={url('/earth-poster-wide.webp')} alt="" fetchpriority="high" decoding="async" />
+  </picture>
   <canvas data-earth data-day={url('/earth-day.jpg')} data-night={url('/earth-lights.jpg')} data-brc={url('/earth-brc.jpg')}></canvas>
 </div>
 <p class="earth__caption" data-earth-caption></p>
@@ -64,7 +68,6 @@ import { url } from '../lib/url';
   const go = () => {
     if (started || handedOver || !canvas) return;
     started = true;
-    wrap?.removeAttribute('hidden');
     const io = new IntersectionObserver(([e]) => {
       if (e.isIntersecting) {
         io.disconnect();
@@ -337,6 +340,7 @@ import { url } from '../lib/url';
     }, { once: true });
     draw();
     canvas.classList.add('is-ready');
+    wrap?.classList.add('is-live');
     dispatchEvent(new Event('earth:hero-ready'));
     if (reduce) return;
     new IntersectionObserver(([e]) => {
@@ -356,10 +360,36 @@ import { url } from '../lib/url';
   .earth {
     position: absolute;
     inset: 0;
+    overflow: hidden;
+    container-type: size;
     background: radial-gradient(110% 90% at 88% 70%, #0d1119 0%, #0a0b0d 62%);
   }
 
+  .earth__poster img {
+    position: absolute;
+    left: calc(50cqw + 24.667cqh);
+    top: 20.148cqh;
+    width: 92.519cqh;
+    height: 79.852cqh;
+    max-width: none;
+    transition: opacity 0.6s var(--ease) 1.8s;
+  }
+
+  @container (max-aspect-ratio: 1/1) {
+    .earth__poster img {
+      left: calc(50cqw - 26.202cqh);
+      top: 57.519cqh;
+      width: 73.953cqh;
+      height: 42.481cqh;
+    }
+  }
+
+  .earth.is-live .earth__poster img {
+    opacity: 0;
+  }
+
   canvas {
+    position: relative;
     width: 100%;
     height: 100%;
     opacity: 0;
