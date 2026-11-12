@@ -126,7 +126,6 @@ import { url } from '../lib/url';
   const fallback = () => {
     document.documentElement.dataset.earthMode = 'hero';
     canvas?.parentElement?.remove();
-    window.dispatchEvent(new Event('earth:fallback'));
   };
 
   const now = () => {
@@ -445,6 +444,7 @@ import { url } from '../lib/url';
 
       draw(0);
       canvas.classList.add('is-ready');
+      window.dispatchEvent(new Event('earth:atmo-ready'));
       if (!reduce) {
         new IntersectionObserver(([e]) => {
           intersecting = e.isIntersecting;
@@ -458,15 +458,16 @@ import { url } from '../lib/url';
   };
 
   if (canvas && capable) {
-    const idle = window.requestIdleCallback ?? ((cb: () => void) => setTimeout(cb, 1));
-    idle(() => preload().catch(fallback));
-    const io = new IntersectionObserver(([e]) => {
-      if (e.isIntersecting) {
-        io.disconnect();
-        start().catch(fallback);
-      }
-    });
-    io.observe(canvas);
+    addEventListener('earth:hero-ready', () => {
+      preload().catch(fallback);
+      const io = new IntersectionObserver(([e]) => {
+        if (e.isIntersecting) {
+          io.disconnect();
+          start().catch(fallback);
+        }
+      });
+      io.observe(canvas);
+    }, { once: true });
   } else if (canvas) {
     canvas.parentElement?.remove();
   }

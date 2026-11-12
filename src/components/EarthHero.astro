@@ -59,10 +59,10 @@ import { url } from '../lib/url';
     return { lat: decl, lon };
   };
 
-  const mode = document.documentElement.dataset.earthMode;
   let started = false;
+  let handedOver = false;
   const go = () => {
-    if (started || !canvas) return;
+    if (started || handedOver || !canvas) return;
     started = true;
     wrap?.removeAttribute('hidden');
     const io = new IntersectionObserver(([e]) => {
@@ -304,7 +304,7 @@ import { url } from '../lib/url';
     const sync = () => {
       cancelAnimationFrame(raf);
       raf = 0;
-      if (reduce || !intersecting || document.hidden) return;
+      if (handedOver || reduce || !intersecting || document.hidden) return;
       last = performance.now();
       raf = requestAnimationFrame(loop);
     };
@@ -326,8 +326,18 @@ import { url } from '../lib/url';
       renderer.dispose();
       renderer.forceContextLoss();
     });
+    addEventListener('earth:atmo-ready', () => {
+      setTimeout(() => {
+        cancelAnimationFrame(raf);
+        clearInterval(minute);
+        renderer.dispose();
+        renderer.forceContextLoss();
+        canvas.remove();
+      }, 2000);
+    }, { once: true });
     draw();
     canvas.classList.add('is-ready');
+    dispatchEvent(new Event('earth:hero-ready'));
     if (reduce) return;
     new IntersectionObserver(([e]) => {
       intersecting = e.isIntersecting;
@@ -335,8 +345,11 @@ import { url } from '../lib/url';
     }).observe(canvas);
   };
 
-  if (mode === 'hero') go();
-  addEventListener('earth:fallback', go);
+  addEventListener('earth:atmo-ready', () => {
+    handedOver = true;
+    wrap?.classList.add('is-handed-over');
+  }, { once: true });
+  go();
 </script>
 
 <style>
@@ -355,6 +368,12 @@ import { url } from '../lib/url';
 
   canvas.is-ready {
     opacity: 1;
+  }
+
+  .earth.is-handed-over {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 1.8s var(--ease);
   }
 
   .earth__caption {

@@ -18,7 +18,7 @@ From the workspace root, the `inbound-dev` entry in `.claude/launch.json` serves
 
 Every build is `noindex` with a disallow-all `robots.txt` unless `PUBLIC_INDEX=true` is set. That makes accidental indexing of a spec build impossible. Set the flag only once Inbound owns the site and it sits on their domain.
 
-`.github/workflows/deploy.yml` publishes a preview to GitHub Pages at `/inbound-aerospace-site` when the repo is pushed. It has not been pushed.
+`.github/workflows/deploy.yml` publishes a preview to GitHub Pages on every push to `main`: https://admin-auxo.github.io/inbound-aerospace-site/. The repo is public, which free GitHub Pages requires, so keep pitch notes out of it.
 
 ## Pages
 
@@ -43,7 +43,7 @@ Every page has a Markdown copy (`/about.md` and so on), listed in `/llms.txt`, w
 
 The page is the vehicle's underside: a thermal-protection tile map. Black tiles and off-white ceramic panels, with heat colour (taken from the orange arc in Inbound's logo) used only where heat or g-load is the subject. The hero's heat band is computed at build time in `src/components/TileField.astro`. Each tile's heat comes from its distance to a re-entry arc. On load a pulse runs along the arc, rising fast and decaying slowly, and is skipped under reduced motion. The direction contract is in `.impeccable/surfaces/`.
 
-Type is Archivo (variable width), self-hosted through Fontsource.
+Type is Saira (variable width, matched to Inbound's logo) for display and Inter for text, self-hosted through Fontsource.
 
 ## Content
 
@@ -72,7 +72,7 @@ The g-load chart is illustrative and labelled as such. Its curves are not flight
 
 ## Home Earth
 
-The home hero picks one renderer per visit. On desktops with WebGL2, at least 4 GB of device memory, a width of 900 px or more and no data-saver setting, `src/components/EarthAtmosphere.astro` renders a physically based atmosphere with @takram/three-atmosphere and postprocessing. It uses 4K day, night and cloud textures (`public/earth-*-4k.jpg`, about 1.8 MB) and precomputed scattering tables (`public/atmosphere/*.exr`, 4.1 MB). Everywhere else, or if loading fails, `src/components/EarthHero.astro` renders a lighter custom shader with the 2K textures. Both light the Earth with the real sun position for the visitor's current time and mark the visitor's approximate region from their time zone, without asking for location. Neither has been tested on real mobile GPUs yet.
+The home hero always starts with `src/components/EarthHero.astro`, a light custom shader with the 2K textures (about 0.7 MB), so a globe appears within seconds even on a slow connection. On desktops with WebGL2, at least 4 GB of device memory, a width of 900 px or more and no data-saver setting, `src/components/EarthAtmosphere.astro` then downloads its assets and renders a physically based atmosphere with @takram/three-atmosphere and postprocessing. It uses 4K day, night and cloud textures (`public/earth-*-4k.jpg`, about 1.8 MB) and precomputed scattering tables (`public/atmosphere/*.exr`, 4.1 MB). Its downloads start only after the light globe is drawn (`earth:hero-ready`), so the two never compete for bandwidth. When it is ready it fires `earth:atmo-ready`, and the light globe fades out and frees its renderer. If it fails, the light globe simply stays. The first deploy waited for the heavy assets and showed a black hero for over a minute on GitHub Pages (about 45 KB/s from Dubai on 12 Nov 2026). Both light the Earth with the real sun position for the visitor's current time and mark the visitor's approximate region from their time zone, without asking for location. Neither has been tested on real mobile GPUs yet.
 
 ## Images and third-party marks
 
