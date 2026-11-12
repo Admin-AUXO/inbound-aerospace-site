@@ -1,0 +1,103 @@
+---
+import Base from '../layouts/Base.astro';
+import PageHero from '../components/heroes/CareersHero.astro';
+import NextChapter from '../components/NextChapter.astro';
+import { pages, careersForm } from '../data/pages';
+
+const page = pages.careers;
+---
+<Base page={page} markdown="/careers.md">
+  <PageHero title="Build a spacecraft with us" lede="Inbound is a small engineering team at IITM Research Park, Chennai, building an autonomous, reusable spacecraft and its landing system. Early hires shape the vehicle and the company." />
+
+  <section class="zone zone--light" aria-labelledby="roles-title">
+    <div class="wrap">
+      <div class="lead">
+        <h2 id="roles-title" class="lead__title">Not the right role?</h2>
+        <p class="lead__text">Applications go to the founding team through a short form.</p>
+      </div>
+      <div class="general">
+        <h3>General application</h3>
+        <p>If you want to work on re-entry vehicles, avionics, structures or flight software, tell us what you would bring.</p>
+        <a class="btn btn--line" href={careersForm} target="_blank" rel="noopener">Apply</a>
+      </div>
+    </div>
+  </section>
+  <NextChapter page={pages.spacecraft} line="See what you would be working on." />
+</Base>
+
+<style>
+  .role {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 2.5rem clamp(2rem, 6vw, 5rem);
+    align-items: end;
+    padding: clamp(2rem, 5vw, 4rem);
+    background: var(--black);
+    color: var(--on-dark);
+    border-top: 3px solid var(--heat-3);
+  }
+
+  .role h3 {
+    font-size: clamp(2.2rem, 5vw, 4.2rem);
+    font-weight: 400;
+    letter-spacing: -0.03em;
+    line-height: 1;
+  }
+
+  .role__spec {
+    margin: clamp(1.75rem, 3vw, 2.5rem) 0 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.25rem clamp(2rem, 5vw, 4rem);
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--rule-dark);
+  }
+
+  .role__spec dt {
+    color: var(--ink-dim);
+  }
+
+  .role__spec dd {
+    margin: 0.35rem 0 0;
+    font-family: var(--display);
+    font-stretch: 108%;
+    font-size: 1.15rem;
+    color: var(--on-dark);
+  }
+
+  .general {
+    display: grid;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 6fr) auto;
+    gap: 1rem clamp(1.5rem, 4vw, 4rem);
+    align-items: center;
+    margin-top: 1rem;
+    padding-block: 2rem;
+    border-bottom: 1px solid var(--rule-light);
+  }
+
+  .general h3 {
+    font-size: clamp(1.4rem, 2.2vw, 1.75rem);
+    font-weight: 450;
+  }
+
+  .general p {
+    color: var(--ink-soft);
+    max-width: 52ch;
+  }
+
+  @media (max-width: 56rem) {
+    .role,
+    .general {
+      grid-template-columns: 1fr;
+    }
+
+    .role {
+      align-items: start;
+    }
+
+    .general .btn,
+    .role .btn {
+      justify-self: start;
+    }
+  }
+</style>

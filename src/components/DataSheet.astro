@@ -1,0 +1,22 @@
+---
+import { brief } from '../data/site';
+---
+<div class="sheet">
+  <table class="brief">
+    <caption class="sr-only">Inbound payload brief</caption>
+    <tbody>
+      {brief.map((b) => (
+        <tr class:list={{ 'is-request': b.status === 'request' }}>
+          <th scope="row">{b.label}</th>
+          <td>{b.value}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+  <dl class="titleblock">
+    <div><dt>Document</dt><dd>Payload brief</dd></div>
+    <div><dt>Issued by</dt><dd>Inbound Aerospace, Chennai</dd></div>
+    <div><dt>Revision</dt><dd>Preview</dd></div>
+    <div><dt>Status</dt><dd>Published figures</dd></div>
+  </dl>
+</div>

@@ -1,0 +1,86 @@
+---
+import HeroShell from './HeroShell.astro';
+import { site } from '../../data/site';
+
+interface Props {
+  title: string;
+  lede: string;
+}
+
+const { title, lede } = Astro.props;
+---
+<HeroShell title={title} lede={lede}>
+  <slot />
+  <div slot="aside" class="coords">
+    <p class="coords__pair"><span>13.0° N</span><span>80.2° E</span></p>
+    <dl>
+      <div><dt>Place</dt><dd>IITM Research Park, {site.address.city}</dd></div>
+      <div><dt>Founded</dt><dd>{site.founded}</dd></div>
+    </dl>
+  </div>
+</HeroShell>
+
+<style>
+  .coords {
+    display: grid;
+    gap: 1.5rem;
+    animation: rise 1s var(--ease) both;
+  }
+
+  .coords__pair {
+    display: grid;
+    gap: 0.15em;
+    margin: 0;
+    max-width: none;
+    font-family: var(--display);
+    font-stretch: 108%;
+    font-weight: 300;
+    font-size: clamp(2.2rem, 4.6vw, 4.2rem);
+    letter-spacing: -0.03em;
+    line-height: 1;
+    color: var(--on-dark);
+  }
+
+  .coords__pair span:last-child {
+    color: var(--on-dark-soft);
+  }
+
+  dl {
+    margin: 0;
+    display: grid;
+    border-top: 1px solid var(--rule-dark);
+  }
+
+  dl div {
+    display: grid;
+    grid-template-columns: 6rem minmax(0, 1fr);
+    gap: 1rem;
+    padding-block: 0.75rem;
+    border-bottom: 1px solid var(--rule-dark);
+  }
+
+  dt {
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    align-self: center;
+  }
+
+  dd {
+    margin: 0;
+    font-family: var(--display);
+    font-stretch: 108%;
+    font-weight: 500;
+    color: var(--on-dark);
+  }
+
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(0.6rem); }
+    to { opacity: 1; transform: none; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .coords { animation: none; }
+  }
+</style>

@@ -1,0 +1,172 @@
+---
+import Base from '../layouts/Base.astro';
+import PageHero from '../components/heroes/PayloadsHero.astro';
+import NextChapter from '../components/NextChapter.astro';
+import Applications from '../components/Applications.astro';
+import DataSheet from '../components/DataSheet.astro';
+import EnquiryForm from '../components/EnquiryForm.astro';
+import { pages, process } from '../data/pages';
+import { briefSection } from '../data/site';
+import { abs } from '../lib/url';
+
+const page = pages.payloads;
+const schema = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'Service',
+    name: 'Payload flights for microgravity research',
+    serviceType: 'Microgravity research payload flights',
+    description: 'Weeks of uninterrupted microgravity in low Earth orbit at 350 to 450 km, re-entry at up to 2 g and recovery from a runway, for pharmaceutical, semiconductor and physical-science experiments.',
+    provider: { '@id': abs('/#organization') },
+    areaServed: 'Worldwide',
+    url: abs(page.path)
+  }
+];
+---
+<Base page={page} schema={schema} markdown="/payloads.md">
+  <PageHero title="Payload flights for microgravity research" lede="Weeks of undisturbed microgravity, a gentle return and recovery on a runway, for research teams in pharmaceuticals, semiconductors and the physical sciences.">
+    <a class="btn btn--heat" href="#enquire">Enquire about a payload</a>
+  </PageHero>
+
+  <section class="zone zone--light" aria-labelledby="fields-title">
+    <div class="wrap">
+      <Applications />
+    </div>
+  </section>
+
+  <section id="brief" class="zone zone--dark" aria-labelledby="brief-title">
+    <div class="wrap datasheet">
+      <div>
+        <h2 id="brief-title" class="lead__title">{briefSection.title}</h2>
+        <p class="lead__text sheet__lede">{briefSection.text}</p>
+        <DataSheet />
+      </div>
+      <EnquiryForm />
+    </div>
+  </section>
+
+  <section class="zone zone--dark zone--joined" aria-labelledby="process-title">
+    <div class="wrap">
+      <div class="lead">
+        <h2 id="process-title" class="lead__title">From enquiry to runway</h2>
+        <p class="lead__text">How a payload moves from first conversation to handover.</p>
+      </div>
+      <ol class="steps track">
+        {process.map((p) => (
+          <li>
+            <h3>{p.name}</h3>
+            <p>{p.text}</p>
+          </li>
+        ))}
+      </ol>
+    </div>
+  </section>
+  <NextChapter page={pages.science} line="Why some processes only behave in orbit." />
+</Base>
+
+<style>
+  .sheet__lede {
+    margin-block: 1.25rem 2rem;
+  }
+
+  .steps.track {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    border-top: 0;
+    margin-top: 1rem;
+  }
+
+  .steps.track li {
+    position: relative;
+    gap: 0.75rem;
+    padding: 4.25rem 1.5rem 0 0;
+    border-bottom: 0;
+  }
+
+  .steps.track li::after {
+    content: '';
+    position: absolute;
+    top: 1.25rem;
+    left: 0;
+    right: 0;
+    border-top: 1px solid var(--ink-dim);
+  }
+
+  .steps.track li:last-child::after {
+    right: 1.5rem;
+    border-top-color: var(--heat-3);
+  }
+
+  .steps.track li::before {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 1;
+    padding-right: 0.9rem;
+    background: var(--black);
+    font-size: 2.1rem;
+    font-weight: 300;
+    letter-spacing: 0.02em;
+    line-height: 2.5rem;
+    color: var(--on-dark);
+  }
+
+  .steps.track li:first-child::before {
+    color: var(--heat-3);
+  }
+
+  .steps.track h3 {
+    font-size: 1.2rem;
+  }
+
+  @media (max-width: 75rem) and (min-width: 60.01rem) {
+    .steps.track {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      row-gap: 3rem;
+    }
+
+    .steps.track li:last-child::after {
+      right: 0;
+      border-top-color: var(--ink-dim);
+    }
+  }
+
+  @media (max-width: 60rem) {
+    .steps.track {
+      grid-template-columns: 1fr;
+    }
+
+    .steps.track li {
+      padding: 0.35rem 0 2.5rem 4rem;
+    }
+
+    .steps.track li::after {
+      top: 2.5rem;
+      bottom: 0;
+      left: 1.25rem;
+      right: auto;
+      border-top: 0;
+      border-left: 1px solid var(--ink-dim);
+    }
+
+    .steps.track li:last-child::after {
+      display: none;
+    }
+
+    .steps.track li::before {
+      width: 2.5rem;
+      height: 2.5rem;
+      padding: 0;
+      text-align: center;
+      font-size: 1.1rem;
+      font-weight: 450;
+      line-height: 2.4rem;
+      letter-spacing: 0;
+      border: 1px solid var(--ink-dim);
+      border-radius: 50%;
+    }
+
+    .steps.track li:first-child::before {
+      border-color: var(--heat-3);
+    }
+  }
+</style>

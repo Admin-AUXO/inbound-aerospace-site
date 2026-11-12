@@ -1,0 +1,82 @@
+---
+import HeroShell from './HeroShell.astro';
+import { readout } from '../../data/site';
+
+interface Props {
+  title: string;
+  lede: string;
+}
+
+const { title, lede } = Astro.props;
+---
+<HeroShell title={title} lede={lede}>
+  <slot />
+  <dl slot="foot" class="figures">
+    {readout.map((r) => (
+      <div class="figures__cell">
+        <dt>{r.label}</dt>
+        <dd>{r.value}</dd>
+      </div>
+    ))}
+  </dl>
+</HeroShell>
+
+<style>
+  .figures {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    margin: 0;
+  }
+
+  .figures__cell {
+    padding: 0.9rem 1.25rem 1rem 0;
+    animation: rise 0.9s var(--ease) both;
+  }
+
+  .figures__cell + .figures__cell {
+    padding-left: 1.25rem;
+    border-left: 1px solid var(--rule-dark);
+  }
+
+  .figures__cell:nth-child(2) { animation-delay: 0.08s; }
+  .figures__cell:nth-child(3) { animation-delay: 0.16s; }
+  .figures__cell:nth-child(4) { animation-delay: 0.24s; }
+
+  dt {
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+  }
+
+  dd {
+    margin: 0.3rem 0 0;
+    font-family: var(--display);
+    font-size: clamp(1.05rem, 1.6vw, 1.35rem);
+    font-weight: 500;
+    font-stretch: 108%;
+    color: var(--on-dark);
+  }
+
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(0.6rem); }
+    to { opacity: 1; transform: none; }
+  }
+
+  @media (max-width: 40rem) {
+    .figures {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .figures__cell + .figures__cell:nth-child(odd) {
+      padding-left: 0;
+      border-left: 0;
+    }
+    .figures__cell:nth-child(n + 3) {
+      border-top: 1px solid var(--rule-dark);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .figures__cell { animation: none; }
+  }
+</style>

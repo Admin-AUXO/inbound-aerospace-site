@@ -1,0 +1,107 @@
+---
+import HeroShell from './HeroShell.astro';
+
+interface Props {
+  title: string;
+  lede: string;
+}
+
+const { title, lede } = Astro.props;
+---
+<HeroShell title={title} lede={lede}>
+  <slot />
+  <figure slot="aside" class="scale">
+    <p class="scale__value" aria-label="One-millionth">
+      <span class="scale__one">1</span><span class="scale__slash">/</span><span class="scale__den">1,000,000</span>
+    </p>
+    <div class="scale__rule" aria-hidden="true"><span></span></div>
+    <figcaption>of surface gravity: the acceleration left inside a spacecraft in free fall at 350 to 450 km</figcaption>
+  </figure>
+</HeroShell>
+
+<style>
+  .scale {
+    margin: 0;
+    display: grid;
+    gap: 1rem;
+  }
+
+  .scale__value {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: nowrap;
+    margin: 0;
+    max-width: none;
+    font-family: var(--display);
+    font-stretch: 108%;
+    font-weight: 300;
+    letter-spacing: -0.04em;
+    line-height: 1;
+    color: var(--on-dark);
+    font-size: clamp(2.2rem, 4.6vw, 4.4rem);
+    white-space: nowrap;
+    animation: rise 1s var(--ease) both;
+  }
+
+  .scale__one {
+    font-size: 1.6em;
+    font-weight: 380;
+  }
+
+  .scale__slash {
+    margin-inline: 0.12em;
+    color: var(--heat-3);
+    font-weight: 200;
+  }
+
+  .scale__den {
+    color: var(--on-dark-soft);
+  }
+
+  .scale__rule {
+    height: 1px;
+    background: var(--rule-dark);
+    position: relative;
+  }
+
+  .scale__rule span {
+    position: absolute;
+    left: 0;
+    top: -4px;
+    width: 1px;
+    height: 9px;
+    background: var(--heat-3);
+    animation: fade 1s 0.5s var(--ease) both;
+  }
+
+  .scale__rule::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: -4px;
+    width: 1px;
+    height: 9px;
+    background: var(--ink-dim);
+  }
+
+  figcaption {
+    max-width: 30ch;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    color: var(--ink-dim);
+  }
+
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(0.6rem); }
+    to { opacity: 1; transform: none; }
+  }
+
+  @keyframes fade {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .scale__value, .scale__rule span { animation: none; }
+  }
+</style>

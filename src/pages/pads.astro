@@ -1,0 +1,72 @@
+---
+import Base from '../layouts/Base.astro';
+import PageHero from '../components/heroes/PadsHero.astro';
+import NextChapter from '../components/NextChapter.astro';
+import EnquiryForm from '../components/EnquiryForm.astro';
+import { pages } from '../data/pages';
+import { pads } from '../data/site';
+import { abs } from '../lib/url';
+
+const page = pages.pads;
+const schema = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: 'Inbound PADS (Precision Aerial Delivery System)',
+    description: pads.text,
+    brand: { '@id': abs('/#organization') },
+    manufacturer: { '@id': abs('/#organization') },
+    category: 'Precision aerial delivery system'
+  }
+];
+---
+<Base page={page} schema={schema} markdown="/pads.md">
+  <PageHero title="Inbound PADS" lede={pads.lede}>
+    <a class="btn btn--heat" href="#enquire">Enquire about PADS</a>
+  </PageHero>
+
+  <section class="zone zone--dark" aria-labelledby="pads-what">
+    <div class="wrap datasheet">
+      <div class="pads__body">
+        <h2 id="pads-what" class="lead__title">Precision Aerial Delivery System</h2>
+        <p class="lead__text">{pads.text}</p>
+        <dl class="pads__facts">
+          {pads.facts.map((p) => (
+            <div>
+              <dt class="meta">{p.label}</dt>
+              <dd>{p.value}</dd>
+            </div>
+          ))}
+        </dl>
+        <p class="pads__note">For programme teams and procurement offices in defence and disaster response.</p>
+      </div>
+      <EnquiryForm topic="PADS" title="PADS enquiries" />
+    </div>
+  </section>
+  <NextChapter page={pages.about} line="The team behind the spacecraft and its landing system." />
+</Base>
+
+<style>
+  .pads__body {
+    display: grid;
+    gap: 1.75rem;
+    align-content: start;
+  }
+
+  .pads__facts {
+    border-top-color: var(--on-dark);
+  }
+
+  .pads__facts div {
+    border-bottom-color: var(--rule-dark);
+  }
+
+  .pads__facts dt {
+    color: var(--ink-dim);
+  }
+
+  .pads__note {
+    font-size: 0.9375rem;
+    color: var(--ink-dim);
+  }
+</style>

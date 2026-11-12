@@ -1,0 +1,251 @@
+---
+import { tests } from '../data/site';
+
+const W = 1200;
+const H = 230;
+const left = 40;
+const right = 1160;
+const axisY = 170;
+const lo = Math.log10(0.5);
+const hi = Math.log10(600);
+const x = (km: number) => left + ((Math.log10(km) - lo) / (hi - lo)) * (right - left);
+const majors = [1, 10, 100];
+const minors = [2, 3, 4, 5, 6, 7, 8, 9, 20, 30, 40, 50, 60, 70, 80, 90, 200, 300, 400, 500];
+const rungs = tests.map((t) => ({ ...t, km: parseFloat(t.altitude) }));
+const done = Math.max(...rungs.filter((r) => r.state === 'Complete').map((r) => r.km));
+const drops = rungs.filter((r) => r.km < 100);
+const lift = [0, 46, 0, 46];
+---
+<div class="gauge" data-gauge>
+  <div class="gauge__frame">
+    <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-labelledby="gauge-title">
+      <title id="gauge-title">Test programme on a logarithmic altitude scale: 1 km drop test complete; 3, 8 and 30 km planned; first orbital mission at 350 to 450 km targeted for 2028</title>
+      <rect x={x(350)} y="20" width={x(450) - x(350)} height={axisY - 20} class="band" data-stage="axis" />
+      <text x={x(400)} y="14" text-anchor="middle" class="tick" data-stage="axis">LEO</text>
+      <line x1={x(100)} x2={x(100)} y1="20" y2={axisY} class="karman" data-stage="axis" />
+      <text x={x(100) - 8} y="34" text-anchor="end" class="tick" data-stage="axis">Kármán line</text>
+      <line x1={left} x2={right} y1={axisY} y2={axisY} class="axis" data-stage="axis" />
+      <line x1={x(0.5)} x2={x(done)} y1={axisY} y2={axisY} class="progress" data-progress />
+      {majors.map((m) => (
+        <g data-stage="axis">
+          <line x1={x(m)} x2={x(m)} y1={axisY} y2={axisY + 10} class="axis" />
+          <text x={x(m)} y={axisY + 30} text-anchor="middle" class="tick">{m} km</text>
+        </g>
+      ))}
+      {minors.map((m) => <line x1={x(m)} x2={x(m)} y1={axisY} y2={axisY + 5} class="minor" data-stage="axis" />)}
+      {drops.map((r, i) => (
+        <g class:list={['test', { 'test--done': r.state === 'Complete' }]} data-test>
+          <line x1={x(r.km)} x2={x(r.km)} y1={axisY - 58 - lift[i]} y2={axisY} class="stem" data-stage="label" />
+          <circle cx={x(r.km)} cy={axisY} r="6" data-marker />
+          <text x={x(r.km) + 10} y={axisY - 64 - lift[i]} class="value" data-stage="label">{r.altitude}</text>
+          <text x={x(r.km) + 10} y={axisY - 38 - lift[i]} class="state" data-stage="label">{r.state}</text>
+        </g>
+      ))}
+      <g class="test test--orbit" data-test>
+        <circle cx={x(400)} cy={axisY} r="6" data-marker />
+        <text x={x(350) - 10} y={axisY - 64} text-anchor="end" class="value" data-stage="label">Orbit</text>
+        <text x={x(350) - 10} y={axisY - 38} text-anchor="end" class="state" data-stage="label">Targeted 2028</text>
+      </g>
+    </svg>
+  </div>
+  <ol class="rows">
+    {rungs.map((r) => (
+      <li class:list={{ 'is-done': r.state === 'Complete' }}>
+        <span class="rows__alt">{r.altitude}</span>
+        <span class="rows__label">{r.label}</span>
+        <span class="rows__state">{r.state}</span>
+      </li>
+    ))}
+  </ol>
+</div>
+
+<script>
+  import { gsap } from 'gsap';
+  import { ScrollTrigger } from 'gsap/ScrollTrigger';
+
+  const root = document.querySelector<HTMLElement>('[data-gauge]');
+  if (root) {
+    gsap.registerPlugin(ScrollTrigger);
+    const frame = root.querySelector<HTMLElement>('.gauge__frame')!;
+    const axis = [...root.querySelectorAll<SVGElement>('[data-stage="axis"]')];
+    const labels = [...root.querySelectorAll<SVGElement>('[data-stage="label"]')];
+    const markers = [...root.querySelectorAll<SVGElement>('[data-marker]')];
+    const progress = root.querySelector<SVGLineElement>('[data-progress]')!;
+    const doneMarker = root.querySelector<SVGCircleElement>('.test--done [data-marker]');
+    const orbitMarker = root.querySelector<SVGCircleElement>('.test--orbit [data-marker]')!;
+
+    const mm = gsap.matchMedia();
+    mm.add('(min-width: 60.01rem) and (prefers-reduced-motion: no-preference)', () => {
+      const x1 = progress.getAttribute('x1')!;
+      const x2 = progress.getAttribute('x2')!;
+      const lit = doneMarker ? getComputedStyle(doneMarker).fill : '';
+      const unlit = getComputedStyle(orbitMarker).fill;
+      gsap.set([...axis, ...labels, ...markers], { opacity: 0 });
+      gsap.set(progress, { attr: { x2: x1 } });
+      if (doneMarker) gsap.set(doneMarker, { fill: unlit });
+      const tl = gsap.timeline({
+        defaults: { ease: 'power2.out' },
+        scrollTrigger: {
+          trigger: frame,
+          start: 'bottom 92%',
+          once: true
+        }
+      });
+      tl.to(axis, { opacity: 1, duration: 0.5, stagger: 0.015 })
+        .to(markers, { opacity: 1, duration: 0.4, stagger: 0.08 }, '>-0.1')
+        .to(labels, { opacity: 1, duration: 0.5, stagger: 0.04 }, '<0.1')
+        .to(progress, { attr: { x2 }, duration: 1.1, ease: 'power2.inOut' }, '>0.1');
+      if (doneMarker) tl.to(doneMarker, { fill: lit, duration: 0.4 }, '>-0.3');
+    });
+  }
+</script>
+
+<style>
+  .gauge__frame {
+    padding-block: 2.5rem 0;
+    border-top: 1px solid var(--ink);
+  }
+
+  svg {
+    width: 100%;
+    height: auto;
+    overflow: visible;
+  }
+
+  .band {
+    fill: rgb(248 147 0 / 0.14);
+  }
+
+  .karman {
+    stroke: #a19e95;
+    stroke-dasharray: 3 5;
+  }
+
+  .axis {
+    stroke: var(--ink);
+    stroke-width: 1.25;
+  }
+
+  .minor {
+    stroke: #a19e95;
+  }
+
+  .progress {
+    stroke: var(--heat-2);
+    stroke-width: 4;
+  }
+
+  .tick {
+    font: 500 12px var(--display);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    fill: var(--ink-soft);
+  }
+
+  .stem {
+    stroke: #b9b5ab;
+  }
+
+  .test circle {
+    fill: var(--ceramic);
+    stroke: var(--ink);
+    stroke-width: 1.5;
+  }
+
+  .test--done circle {
+    fill: var(--heat-2);
+    stroke: var(--heat-2);
+  }
+
+  .test--orbit circle {
+    fill: var(--ceramic);
+    stroke: var(--heat-ink);
+  }
+
+  .value {
+    font: 430 26px var(--display);
+    letter-spacing: -0.02em;
+    fill: var(--ink);
+  }
+
+  .test--orbit .value {
+    fill: var(--heat-ink);
+  }
+
+  .state {
+    font: 550 12px var(--display);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    fill: var(--ink-soft);
+  }
+
+  .test--done .state {
+    fill: var(--heat-ink);
+  }
+
+  .rows {
+    display: none;
+    list-style: none;
+    margin: 1.5rem 0 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 1.5rem;
+  }
+
+  .rows li {
+    display: grid;
+    gap: 0.25rem;
+    padding-top: 0.9rem;
+    border-top: 1px solid var(--rule-light);
+  }
+
+  .rows li.is-done {
+    border-top-color: var(--heat-2);
+  }
+
+  .rows__alt {
+    font-family: var(--display);
+    font-size: 1.15rem;
+    font-weight: 500;
+  }
+
+  .rows__label {
+    font-size: 0.9375rem;
+    color: var(--ink-soft);
+  }
+
+  .rows__state {
+    font-family: var(--display);
+    font-size: 0.75rem;
+    font-weight: 550;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+
+  .is-done .rows__state {
+    color: var(--heat-ink);
+  }
+
+  @media (max-width: 60rem) {
+    .tick,
+    .value,
+    .state {
+      display: none;
+    }
+
+    .rows {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 0;
+    }
+
+    .rows li {
+      grid-template-columns: 5rem 1fr auto;
+      align-items: baseline;
+      gap: 1rem;
+      padding-block: 0.8rem;
+    }
+  }
+</style>

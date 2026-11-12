@@ -1,0 +1,79 @@
+---
+interface Props {
+  title: string;
+  lede: string;
+}
+
+const { title, lede } = Astro.props;
+const hasAside = Astro.slots.has('aside');
+const hasFoot = Astro.slots.has('foot');
+---
+<section class="phero" aria-labelledby="page-title">
+  <div class="wrap phero__inner" class:list={{ 'phero__inner--split': hasAside }}>
+    <div class="phero__text">
+      <h1 id="page-title">{title}</h1>
+      <p>{lede}</p>
+      <slot />
+    </div>
+    {hasAside && <div class="phero__aside"><slot name="aside" /></div>}
+  </div>
+  {hasFoot && <div class="phero__foot"><div class="wrap"><slot name="foot" /></div></div>}
+</section>
+
+<style>
+  .phero {
+    position: relative;
+    overflow: hidden;
+    padding-top: clamp(7rem, 10vw, 8rem);
+    background: var(--black);
+    color: var(--on-dark);
+    border-bottom: 1px solid var(--rule-dark);
+  }
+
+  .phero__inner {
+    display: grid;
+    gap: var(--col-gap);
+    padding-bottom: clamp(2.5rem, 5vw, 4rem);
+  }
+
+  .phero__inner--split {
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+    align-items: end;
+  }
+
+  .phero__text {
+    display: grid;
+    gap: 1.5rem;
+    justify-items: start;
+  }
+
+  h1 {
+    max-width: 16ch;
+    font-size: clamp(2.6rem, 5.4vw, 4.9rem);
+    font-weight: 430;
+    font-stretch: 110%;
+    letter-spacing: -0.04em;
+    line-height: 0.97;
+  }
+
+  p {
+    max-width: 58ch;
+    font-size: clamp(1.0625rem, 1.4vw, 1.25rem);
+    color: var(--on-dark-soft);
+  }
+
+  .phero__aside {
+    min-width: 0;
+  }
+
+  .phero__foot {
+    border-top: 1px solid var(--rule-dark);
+  }
+
+  @media (max-width: 56rem) {
+    .phero__inner--split {
+      grid-template-columns: minmax(0, 1fr);
+      align-items: start;
+    }
+  }
+</style>

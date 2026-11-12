@@ -1,0 +1,303 @@
+---
+import Base from '../layouts/Base.astro';
+import PageHero from '../components/heroes/ScienceHero.astro';
+import NextChapter from '../components/NextChapter.astro';
+import FlameCompare from '../components/FlameCompare.astro';
+import { pages, science } from '../data/pages';
+import { url } from '../lib/url';
+
+const page = pages.science;
+const schema = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: [...science.sections.map((s) => ({ q: s.q, a: s.a.join(' ') })), ...science.faq].map((x) => ({
+      '@type': 'Question',
+      name: x.q,
+      acceptedAnswer: { '@type': 'Answer', text: x.a }
+    }))
+  }
+];
+const [what, why, now] = science.sections;
+const sentences = (t: string) => t.split(/(?<=\.)\s+/);
+const whatS = sentences(what.a[0]);
+const whyS = sentences(why.a[0]);
+const nowS = sentences(now.a[0]);
+---
+<Base page={page} schema={schema} markdown="/science.md">
+  <PageHero title="Microgravity, explained" lede={science.lede}>
+    <nav class="jump" aria-label="On this page">
+      {science.sections.map((s) => <a href={`#${s.id}`}>{s.q}</a>)}
+      <a href="#faq">Questions</a>
+    </nav>
+  </PageHero>
+
+  <section id={what.id} class="zone zone--light" aria-labelledby={`${what.id}-title`}>
+    <div class="wrap sci">
+      <h2 id={`${what.id}-title`} class="lead__title">{what.q}</h2>
+      <p class="sci__pull">{whatS[0]}</p>
+      <div class="sci__row sci__row--what">
+        <p class="sci__fig">
+          <span class="sci__num">One-millionth</span>
+          <span class="sci__cap">of surface gravity is what remains inside a spacecraft in free fall, although gravity itself is about 90% as strong at that height</span>
+        </p>
+        <p>{whatS[1]}</p>
+        <p>{whatS[2]}</p>
+      </div>
+    </div>
+  </section>
+
+  <section id={why.id} class="zone zone--dark" aria-labelledby={`${why.id}-title`}>
+    <div class="wrap sci">
+      <div class="sci__top">
+        <h2 id={`${why.id}-title`} class="lead__title">{why.q}</h2>
+        <p class="sci__quote">{whyS[2]}</p>
+      </div>
+      <div class="sci__flame">
+        <div class="sci__cols sci__cols--stack">
+          <p>{whyS[0]} {whyS[1]}</p>
+          <p>{why.a[1]}</p>
+        </div>
+        <FlameCompare />
+      </div>
+    </div>
+  </section>
+
+  <section id={now.id} class="zone zone--light" aria-labelledby={`${now.id}-title`}>
+    <div class="wrap sci sci--now">
+      <div class="sci__side">
+        <h2 id={`${now.id}-title`} class="lead__title">{now.q}</h2>
+        <p class="sci__year" aria-label="Around 2030">
+          <span class="sci__around">Around</span>
+          <span class="sci__big">2030</span>
+          <span class="sci__cap">International Space Station scheduled for retirement</span>
+        </p>
+      </div>
+      <div class="sci__body">
+        <p class="sci__lead">{nowS[0]}</p>
+        <div class="sci__cols">
+          <p>{nowS[1]}</p>
+          <p>{now.a[1]}</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="faq" class="zone zone--dark" aria-labelledby="faq-title">
+    <div class="wrap">
+      <div class="lead">
+        <h2 id="faq-title" class="lead__title">Questions</h2>
+        <p class="lead__text">Asked by researchers considering a flight.</p>
+      </div>
+      <dl class="qa">
+        {science.faq.map((x) => (
+          <div>
+            <dt>{x.q}</dt>
+            <dd>{x.a}</dd>
+          </div>
+        ))}
+      </dl>
+      <p class="next"><a class="btn btn--heat" href={url(pages.payloads.path)}>Fly a payload</a></p>
+    </div>
+  </section>
+  <NextChapter page={pages.spacecraft} line="The vehicle built to bring those results home gently." />
+</Base>
+
+<style>
+  .jump {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.75rem;
+    margin-top: 1rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--rule-dark);
+    font-family: var(--display);
+    font-weight: 500;
+  }
+
+  .jump a {
+    text-decoration: none;
+    color: var(--on-dark-soft);
+    border-bottom: 1px solid transparent;
+  }
+
+  .jump a:hover {
+    color: var(--on-dark);
+    border-bottom-color: var(--heat-3);
+  }
+
+  .sci {
+    display: grid;
+    gap: var(--space-head);
+  }
+
+  .sci p {
+    max-width: 42ch;
+  }
+
+  .sci__pull {
+    max-width: 30ch !important;
+    font-family: var(--display);
+    font-size: clamp(1.9rem, 4vw, 3.4rem);
+    font-weight: 400;
+    font-stretch: 106%;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+    color: var(--ink);
+  }
+
+  .sci__row {
+    display: grid;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 3.5fr) minmax(0, 3.5fr);
+    gap: clamp(1.5rem, 4vw, 3.5rem);
+    padding-top: 1.75rem;
+    border-top: 1px solid var(--ink);
+    color: var(--ink-soft);
+  }
+
+  .sci__fig {
+    display: grid;
+    gap: 0.75rem;
+    align-content: start;
+  }
+
+  .sci__num {
+    font-family: var(--display);
+    font-size: clamp(2.6rem, 4.6vw, 4rem);
+    font-weight: 420;
+    font-stretch: 108%;
+    letter-spacing: -0.035em;
+    line-height: 1;
+    color: var(--heat-ink);
+  }
+
+  .sci__cap {
+    font-size: 0.9375rem;
+    color: var(--ink-soft);
+    max-width: 30ch;
+  }
+
+  .sci__top {
+    display: grid;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    gap: clamp(2rem, 6vw, 5rem);
+    align-items: start;
+  }
+
+  .sci__quote {
+    max-width: 24ch !important;
+    padding-top: 1.5rem;
+    border-top: 2px solid var(--heat-3);
+    font-family: var(--display);
+    font-size: clamp(1.5rem, 2.8vw, 2.4rem);
+    font-weight: 400;
+    font-stretch: 106%;
+    letter-spacing: -0.02em;
+    line-height: 1.18;
+    color: var(--on-dark);
+  }
+
+  .sci__cols {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: clamp(1.5rem, 4vw, 3.5rem);
+  }
+
+  .sci__cols p {
+    max-width: 38ch;
+  }
+
+  .sci__flame {
+    display: grid;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+    gap: clamp(2rem, 5vw, 4.5rem);
+    align-items: start;
+  }
+
+  .sci__cols--stack {
+    grid-template-columns: 1fr;
+    align-content: start;
+  }
+
+  @media (max-width: 60rem) {
+    .sci__flame {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .zone--dark .sci__cols {
+    padding-top: 1.75rem;
+    border-top: 1px solid var(--rule-dark);
+    color: var(--on-dark-soft);
+  }
+
+  .sci--now {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    gap: clamp(2.5rem, 6vw, 5rem);
+    align-items: start;
+  }
+
+  .sci__side {
+    display: grid;
+    gap: var(--space-head);
+  }
+
+  .sci__year {
+    display: grid;
+    gap: 0.5rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--ink);
+  }
+
+  .sci__around {
+    font-family: var(--display);
+    font-size: 1.125rem;
+    font-weight: 500;
+    color: var(--ink-soft);
+  }
+
+  .sci__big {
+    font-family: var(--display);
+    font-size: clamp(4.5rem, 10vw, 8.5rem);
+    font-weight: 400;
+    font-stretch: 108%;
+    letter-spacing: -0.05em;
+    line-height: 0.9;
+    color: var(--heat-ink);
+  }
+
+  .sci__body {
+    display: grid;
+    gap: var(--space-block);
+    padding-top: 0.5rem;
+  }
+
+  .sci__lead {
+    max-width: 24ch !important;
+    font-family: var(--display);
+    font-size: clamp(1.5rem, 2.8vw, 2.4rem);
+    font-weight: 400;
+    font-stretch: 106%;
+    letter-spacing: -0.02em;
+    line-height: 1.18;
+  }
+
+  .sci--now .sci__cols {
+    padding-top: 1.75rem;
+    border-top: 1px solid var(--rule-light);
+    color: var(--ink-soft);
+  }
+
+  @media (max-width: 60rem) {
+    .sci__row,
+    .sci__top,
+    .sci--now,
+    .sci__cols {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .next {
+    margin-top: 2.5rem;
+  }
+</style>

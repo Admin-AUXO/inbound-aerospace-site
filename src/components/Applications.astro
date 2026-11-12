@@ -1,0 +1,270 @@
+---
+import { fields, fieldsSection } from '../data/site';
+---
+<div class="apps" data-apps>
+  <div class="apps__head">
+    <h2 id="fields-title">{fieldsSection.title}</h2>
+    <p>{fieldsSection.text}</p>
+  </div>
+  <div class="apps__body">
+    <div class="apps__list" role="tablist" aria-label="Applications" aria-orientation="vertical">
+      {fields.map((f, i) => (
+        <button class="app" role="tab" id={`app-tab-${i}`} aria-selected={i === 0 ? 'true' : 'false'} aria-controls={`app-panel-${i}`} data-tab={i}>
+          <span class="app__name">{f.name}</span>
+          <span class="app__hint">{f.short}</span>
+        </button>
+      ))}
+    </div>
+    <div class="apps__panels">
+      {fields.map((f, i) => (
+        <div class="panel" id={`app-panel-${i}`} role="tabpanel" aria-labelledby={`app-tab-${i}`} data-panel={i} data-active={i === 0 ? 'true' : 'false'}>
+          <blockquote class="panel__evidence">
+            <p>{f.evidence}</p>
+            <footer>{f.source}</footer>
+          </blockquote>
+          <ol class="panel__uses">
+            {f.items.map((it, n) => <li><span class="panel__n">{String(n + 1).padStart(2, '0')}</span><span>{it}</span></li>)}
+          </ol>
+        </div>
+      ))}
+    </div>
+  </div>
+</div>
+
+<script>
+  const root = document.querySelector<HTMLElement>('[data-apps]');
+  if (root) {
+    root.classList.add('js');
+    const tabs = [...root.querySelectorAll<HTMLButtonElement>('[data-tab]')];
+    const panels = [...root.querySelectorAll<HTMLElement>('[data-panel]')];
+    const select = (i: number) => {
+      tabs.forEach((t, j) => {
+        t.setAttribute('aria-selected', String(i === j));
+        t.tabIndex = i === j ? 0 : -1;
+      });
+      panels.forEach((p, j) => p.setAttribute('data-active', String(i === j)));
+    };
+    tabs.forEach((t, i) => {
+      t.addEventListener('click', () => select(i));
+      t.addEventListener('keydown', (e) => {
+        const k = e.key;
+        let next = -1;
+        if (k === 'ArrowDown' || k === 'ArrowRight') next = (i + 1) % tabs.length;
+        else if (k === 'ArrowUp' || k === 'ArrowLeft') next = (i + tabs.length - 1) % tabs.length;
+        else if (k === 'Home') next = 0;
+        else if (k === 'End') next = tabs.length - 1;
+        if (next < 0) return;
+        e.preventDefault();
+        select(next);
+        tabs[next].focus();
+      });
+    });
+    select(0);
+  }
+</script>
+
+<style>
+  .apps__head {
+    display: grid;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    gap: var(--col-gap);
+    align-items: end;
+    margin-bottom: clamp(3rem, 6vw, 4.5rem);
+  }
+
+  .apps__head h2 {
+    font-size: clamp(2.6rem, 5.4vw, 4.8rem);
+    letter-spacing: -0.035em;
+  }
+
+  .apps__head p {
+    max-width: 48ch;
+    font-size: 1.125rem;
+    color: var(--ink-soft);
+  }
+
+  .apps__body {
+    display: grid;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    gap: var(--col-gap);
+    align-items: stretch;
+  }
+
+  .apps__list {
+    display: grid;
+    grid-auto-rows: 1fr;
+    border-bottom: 1px solid var(--rule-light);
+  }
+
+  .app {
+    position: relative;
+    display: grid;
+    align-content: center;
+    gap: 0.6rem;
+    width: 100%;
+    padding: 1.5rem 0 1.5rem 1.5rem;
+    border: 0;
+    border-top: 1px solid var(--rule-light);
+    background: none;
+    color: var(--ink-muted);
+    text-align: left;
+    cursor: pointer;
+    transition: color 0.35s var(--ease);
+  }
+
+  .app::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: -1px;
+    bottom: 0;
+    width: 3px;
+    background: var(--heat-3);
+    transform: scaleY(0);
+    transform-origin: top;
+    transition: transform 0.45s var(--ease);
+  }
+
+  .app__name {
+    font-family: var(--display);
+    font-size: clamp(1.9rem, 3.4vw, 3rem);
+    font-weight: 400;
+    font-stretch: 106%;
+    letter-spacing: -0.035em;
+    line-height: 1;
+  }
+
+  .app__hint {
+    font-family: var(--text);
+    font-size: 0.9375rem;
+    line-height: 1.4;
+    color: var(--ink-muted);
+    transition: color 0.35s var(--ease);
+  }
+
+  .app:hover,
+  .app[aria-selected='true'] {
+    color: var(--ink);
+  }
+
+  .app[aria-selected='true'] .app__hint {
+    color: var(--ink-soft);
+  }
+
+  .app[aria-selected='true']::before {
+    transform: scaleY(1);
+  }
+
+  .app:focus-visible {
+    outline: 2px solid var(--heat-ink);
+    outline-offset: -2px;
+  }
+
+  .apps__panels {
+    display: grid;
+    background: var(--black);
+    color: var(--on-dark);
+    border-radius: 2px;
+  }
+
+  .panel {
+    grid-area: 1 / 1;
+    display: grid;
+    gap: 2.5rem;
+    align-content: space-between;
+    padding: clamp(1.75rem, 3.5vw, 3rem);
+  }
+
+  .apps:not(.js) .apps__panels {
+    gap: 1px;
+    background: var(--rule-dark);
+  }
+
+  .apps:not(.js) .panel {
+    grid-area: auto;
+    background: var(--black);
+  }
+
+  .js .panel {
+    visibility: hidden;
+    opacity: 0;
+    transform: translateY(0.5rem);
+    transition: opacity 0.4s var(--ease), transform 0.5s var(--ease), visibility 0s linear 0.4s;
+  }
+
+  .js .panel[data-active='true'] {
+    visibility: visible;
+    opacity: 1;
+    transform: none;
+    transition: opacity 0.45s var(--ease) 0.08s, transform 0.55s var(--ease) 0.08s, visibility 0s;
+  }
+
+  .panel__evidence {
+    margin: 0;
+  }
+
+  .panel__evidence p {
+    font-family: var(--display);
+    font-size: clamp(1.3rem, 2.1vw, 1.75rem);
+    font-weight: 400;
+    font-stretch: 104%;
+    letter-spacing: -0.01em;
+    line-height: 1.3;
+  }
+
+  .panel__evidence footer {
+    margin-top: 1.25rem;
+    font-size: 0.8125rem;
+    color: var(--ink-dim);
+  }
+
+  .panel__uses {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    border-top: 1px solid var(--rule-dark);
+    font-size: 0.9375rem;
+    color: var(--on-dark-soft);
+  }
+
+  .panel__uses li {
+    display: grid;
+    grid-template-columns: 2.25rem minmax(0, 1fr);
+    padding: 0.85rem 0;
+    border-bottom: 1px solid var(--rule-dark);
+  }
+
+  .panel__uses li:last-child {
+    border-bottom: 0;
+    padding-bottom: 0;
+  }
+
+  .panel__n {
+    font-family: var(--display);
+    font-size: 0.8125rem;
+    color: var(--heat-3);
+    padding-top: 0.15rem;
+  }
+
+  @media (max-width: 60rem) {
+    .apps__head,
+    .apps__body {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .js .panel,
+    .js .panel[data-active='true'] {
+      transform: none;
+      transition: none;
+    }
+
+    .app,
+    .app::before,
+    .app__hint {
+      transition: none;
+    }
+  }
+</style>

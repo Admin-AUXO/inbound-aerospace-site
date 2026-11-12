@@ -1,0 +1,201 @@
+---
+import Base from '../layouts/Base.astro';
+import EarthHero from '../components/EarthHero.astro';
+import EarthAtmosphere from '../components/EarthAtmosphere.astro';
+import LoadChart from '../components/LoadChart.astro';
+import ChapterIndex from '../components/ChapterIndex.astro';
+import Backers from '../components/Backers.astro';
+import AltitudeGauge from '../components/AltitudeGauge.astro';
+import { site, headline, readout, returnSection, returnFacts, testsSection } from '../data/site';
+import { pages } from '../data/pages';
+import { abs, url } from '../lib/url';
+
+const schema = [{ '@context': 'https://schema.org', '@type': 'WebSite', name: site.name, url: abs('/'), publisher: { '@id': abs('/#organization') } }];
+const ways = [
+  { page: pages.news, title: 'Latest news', text: 'Funding, test milestones, events and press coverage.', cta: 'News' },
+  { page: pages.careers, title: 'Join the team', text: 'We are building the engineering team in Chennai, beginning with avionics.', cta: 'Careers' },
+  { page: pages.contact, title: 'Talk to the founders', text: 'Payload, partnership, PADS, investment and press enquiries.', cta: 'Contact' }
+];
+---
+<Base page={pages.home} schema={schema} markdown="/index.md">
+  <section class="hero" aria-labelledby="hero-title">
+    <EarthAtmosphere />
+    <EarthHero />
+    <div class="hero__shade" aria-hidden="true"></div>
+    <div class="wrap hero__inner">
+      <h1 id="hero-title">{headline.lines.map((l) => <span>{l}</span>)}</h1>
+      <div class="hero__foot">
+        <p class="hero__lede">{headline.lede}</p>
+        <div class="hero__actions">
+          <a class="btn btn--heat" href={url('/payloads/#enquire')}>Enquire about a payload</a>
+          <a class="btn btn--line-dark" href={url('/payloads/#brief')}>Read the payload brief</a>
+        </div>
+      </div>
+    </div>
+    <dl class="readout">
+      <div class="wrap readout__row">
+        {readout.map((r) => (
+          <div class="readout__cell">
+            <dt class="meta">{r.label}</dt>
+            <dd>{r.value}</dd>
+          </div>
+        ))}
+      </div>
+    </dl>
+  </section>
+
+  <section id="return" class="zone zone--light" aria-labelledby="return-title">
+    <div class="wrap">
+      <div class="lead">
+        <h2 id="return-title" class="lead__title">{returnSection.title}</h2>
+        <p class="lead__text">{returnSection.text}</p>
+      </div>
+      <LoadChart />
+      <dl class="facts">
+        {returnFacts.map((f) => (
+          <div class="facts__cell">
+            <dt><span class="facts__value">{f.value}</span><span class="facts__unit">{f.unit}</span></dt>
+            <dd>{f.text}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  </section>
+
+  <section class="zone zone--dark" aria-labelledby="explore-title">
+    <div class="wrap">
+      <div class="lead">
+        <h2 id="explore-title" class="lead__title">Inside the programme</h2>
+        <p class="lead__text">The spacecraft, the experiments it carries, the science behind them and the landing system that also flies on its own.</p>
+      </div>
+      <ChapterIndex />
+    </div>
+  </section>
+
+  <section id="tests" class="zone zone--light" aria-labelledby="tests-title">
+    <div class="wrap">
+      <div class="lead">
+        <h2 id="tests-title" class="lead__title">{testsSection.title}</h2>
+        <p class="lead__text">{testsSection.text}</p>
+      </div>
+      <AltitudeGauge />
+    </div>
+  </section>
+
+  <section class="zone zone--dark backed" aria-labelledby="backed-title">
+    <div class="wrap backed__row">
+      <div>
+        <h2 id="backed-title" class="backed__title">Founded in Chennai in 2025. Incubated at IIT Madras. Advised by former senior ISRO leaders.</h2>
+        <a class="arrow-link" href={url(pages.about.path)}>Meet the team</a>
+      </div>
+      <Backers />
+    </div>
+  </section>
+
+  <section class="zone zone--dark zone--joined" aria-label="Next steps">
+    <div class="wrap ways">
+      {ways.map((w) => (
+        <a class="way" href={url(w.page.path)}>
+          <h2>{w.title}</h2>
+          <p>{w.text}</p>
+          <span>{w.cta}</span>
+        </a>
+      ))}
+    </div>
+  </section>
+</Base>
+
+<style>
+  .hero {
+    position: relative;
+    display: grid;
+    grid-template-rows: 1fr auto;
+    min-height: max(42rem, 100svh);
+    overflow: hidden;
+    background: var(--black);
+    color: var(--on-dark);
+  }
+
+  .hero__shade {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(100deg, rgb(11 12 14 / 0.85) 0%, rgb(11 12 14 / 0.45) 38%, rgb(11 12 14 / 0) 56%);
+  }
+
+  .hero__inner {
+    position: relative;
+    align-self: center;
+    display: grid;
+    gap: clamp(2rem, 4vw, 3rem);
+    padding-block: 8rem 3rem;
+  }
+
+  .hero h1 {
+    display: grid;
+    max-width: 15ch;
+    font-size: clamp(2.8rem, 6.6vw, 6.2rem);
+    font-weight: 430;
+    font-stretch: 110%;
+    letter-spacing: -0.04em;
+    line-height: 0.95;
+  }
+
+  .hero h1 span:last-child {
+    color: var(--heat-3);
+  }
+
+  .hero__foot {
+    display: grid;
+    gap: 1.75rem;
+    max-width: 34rem;
+  }
+
+  .hero__lede {
+    font-size: clamp(1.0625rem, 1.3vw, 1.1875rem);
+    color: var(--on-dark-soft);
+  }
+
+  .hero__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+
+  .backed__row {
+    display: grid;
+    grid-template-columns: minmax(0, 6fr) minmax(0, 5fr);
+    gap: clamp(2rem, 6vw, 6rem);
+    align-items: center;
+  }
+
+  .backed__row > div {
+    display: grid;
+    gap: 1.5rem;
+    justify-items: start;
+  }
+
+  .backed__title {
+    font-size: clamp(1.5rem, 2.6vw, 2.2rem);
+    font-weight: 420;
+    letter-spacing: -0.025em;
+    line-height: 1.15;
+  }
+
+  @media (max-width: 60rem) {
+    .backed__row {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 36rem) {
+    .hero__inner {
+      align-self: start;
+      padding-block: 7rem 2rem;
+    }
+
+    .hero__shade {
+      background: linear-gradient(180deg, rgb(11 12 14 / 0.75) 0%, rgb(11 12 14 / 0.55) 45%, rgb(11 12 14 / 0.1) 75%);
+    }
+  }
+</style>

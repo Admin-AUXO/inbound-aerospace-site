@@ -1,0 +1,82 @@
+---
+import HeroShell from './HeroShell.astro';
+import { site } from '../../data/site';
+
+interface Props {
+  title: string;
+  lede: string;
+}
+
+const { title, lede } = Astro.props;
+const time = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date());
+const a = site.address;
+---
+<HeroShell title={title} lede={lede}>
+  <slot />
+  <div slot="aside" class="clock">
+    <p class="clock__time"><time data-chennai-time>{time}</time></p>
+    <p class="clock__zone">Chennai local time, IST (UTC+5:30)</p>
+    <p class="clock__addr">IITM Research Park, {a.locality}, {a.city} {a.postcode}</p>
+  </div>
+</HeroShell>
+
+<script>
+  const el = document.querySelector<HTMLElement>('[data-chennai-time]');
+  if (el) {
+    const fmt = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: false });
+    const tick = () => {
+      el.textContent = fmt.format(new Date());
+      setTimeout(tick, 60000 - (Date.now() % 60000) + 50);
+    };
+    tick();
+  }
+</script>
+
+<style>
+  .clock {
+    display: grid;
+    gap: 0.6rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--rule-dark);
+    animation: rise 1s var(--ease) both;
+  }
+
+  .clock__time {
+    margin: 0;
+    max-width: none;
+    font-family: var(--display);
+    font-stretch: 108%;
+    font-weight: 300;
+    font-size: clamp(3rem, 6.4vw, 5.6rem);
+    letter-spacing: -0.04em;
+    line-height: 1.08;
+    color: var(--on-dark);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .clock__time time {
+    display: block;
+  }
+
+  .clock__zone {
+    margin-top: 0.9rem;
+    font-size: 0.75rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--heat-3);
+  }
+
+  .clock__addr {
+    font-size: 1rem;
+    color: var(--on-dark-soft);
+  }
+
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(0.6rem); }
+    to { opacity: 1; transform: none; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .clock { animation: none; }
+  }
+</style>

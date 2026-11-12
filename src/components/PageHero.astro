@@ -1,0 +1,71 @@
+---
+import TileField from './TileField.astro';
+
+interface Props {
+  title: string;
+  lede: string;
+  tiles?: boolean;
+}
+
+const { title, lede, tiles = false } = Astro.props;
+---
+<section class:list={['page-hero', { 'page-hero--tiles': tiles }]} aria-labelledby="page-title">
+  {tiles && <TileField />}
+  {tiles && <div class="page-hero__shade" aria-hidden="true"></div>}
+  <div class="wrap page-hero__inner">
+    <h1 id="page-title">{title}</h1>
+    <p>{lede}</p>
+    <slot />
+  </div>
+</section>
+
+<style>
+  .page-hero {
+    position: relative;
+    overflow: hidden;
+    padding-block: clamp(8rem, 12vw, 9.5rem) clamp(3.5rem, 6vw, 5rem);
+    background: var(--black);
+    color: var(--on-dark);
+    border-bottom: 1px solid var(--rule-dark);
+  }
+
+  .page-hero--tiles {
+    min-height: min(46rem, 88svh);
+    display: grid;
+    align-items: end;
+  }
+
+  .page-hero__shade {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(100deg, rgb(17 18 20 / 0.92) 0%, rgb(17 18 20 / 0.6) 42%, rgb(17 18 20 / 0) 64%);
+  }
+
+  .page-hero__inner {
+    position: relative;
+    display: grid;
+    gap: 1.5rem;
+    justify-items: start;
+  }
+
+  h1 {
+    max-width: 16ch;
+    font-size: clamp(2.8rem, 6.6vw, 6rem);
+    font-weight: 430;
+    font-stretch: 110%;
+    letter-spacing: -0.04em;
+    line-height: 0.96;
+  }
+
+  p {
+    max-width: 52ch;
+    font-size: clamp(1.0625rem, 1.4vw, 1.25rem);
+    color: var(--on-dark-soft);
+  }
+
+  @media (max-width: 36rem) {
+    .page-hero__shade {
+      background: linear-gradient(180deg, rgb(17 18 20 / 0.25) 0%, rgb(17 18 20 / 0.9) 60%);
+    }
+  }
+</style>

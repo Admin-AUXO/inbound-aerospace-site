@@ -1,0 +1,128 @@
+---
+import Base from '../layouts/Base.astro';
+import PageHero from '../components/heroes/ContactHero.astro';
+import EnquiryForm from '../components/EnquiryForm.astro';
+import { pages } from '../data/pages';
+import { site } from '../data/site';
+import { abs, url } from '../lib/url';
+
+const page = pages.contact;
+const schema = [{ '@context': 'https://schema.org', '@type': 'ContactPage', url: abs(page.path), about: { '@id': abs('/#organization') } }];
+---
+<Base page={page} schema={schema} markdown="/contact.md">
+  <PageHero title="Contact" lede="Payload, partnership, PADS, investment and press enquiries are handled by the founding team." />
+
+  <section class="zone zone--dark" aria-label="Enquiry form and address">
+    <div class="wrap contact">
+      <div class="visit">
+        <div class="visit__place">
+          <h2>Visit</h2>
+          <address>
+            Inbound Aerospace<br />
+            IIT Madras Incubation Cell<br />
+            D Block, 3rd Floor, IITM Research Park<br />
+            Taramani, Chennai 600113<br />
+            Tamil Nadu, India
+          </address>
+          <a class="arrow-link" href={site.mapsLink} target="_blank" rel="noopener">Open in Google Maps</a>
+        </div>
+        <dl class="routes-list">
+          <div><dt>Payloads</dt><dd>Experiment, duration and timeline. <a href={url('/payloads/#brief')}>Payload brief</a></dd></div>
+          <div><dt>PADS</dt><dd>Defence and emergency supply. <a href={url('/pads/')}>About PADS</a></dd></div>
+          <div><dt>Careers</dt><dd>Applications go through the careers form. <a href={url('/careers/')}>Open roles</a></dd></div>
+        </dl>
+      </div>
+      <EnquiryForm title="Send an enquiry" lede="" />
+    </div>
+  </section>
+</Base>
+
+<style>
+  .contact {
+    display: grid;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+    gap: clamp(2.5rem, 7vw, 7rem);
+    align-items: start;
+  }
+
+  .visit {
+    display: grid;
+    gap: clamp(2.5rem, 5vw, 4rem);
+    align-content: start;
+  }
+
+  .visit__place {
+    display: grid;
+    gap: 1.5rem;
+    justify-items: start;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--on-dark);
+  }
+
+  .visit h2 {
+    font-size: clamp(2.2rem, 4vw, 3.4rem);
+    letter-spacing: -0.03em;
+    line-height: 1;
+  }
+
+  .visit address {
+    font-style: normal;
+    font-size: 1.0625rem;
+    line-height: 1.75;
+    color: var(--on-dark-soft);
+  }
+
+  .visit address::first-line {
+    font-family: var(--display);
+    font-stretch: 108%;
+    font-size: 1.35rem;
+    color: var(--on-dark);
+  }
+
+  .routes-list {
+    margin: 0;
+    border-top: 1px solid var(--rule-dark);
+  }
+
+  .routes-list div {
+    display: grid;
+    grid-template-columns: 6.5rem minmax(0, 1fr);
+    gap: 1rem;
+    padding-block: 1.25rem;
+    border-bottom: 1px solid var(--rule-dark);
+  }
+
+  .routes-list dt {
+    font-family: var(--display);
+    font-stretch: 108%;
+    font-weight: 550;
+    font-size: 1.1rem;
+    color: var(--on-dark);
+  }
+
+  .routes-list dd {
+    margin: 0;
+    color: var(--on-dark-soft);
+    font-size: 0.9375rem;
+  }
+
+  .routes-list a {
+    display: block;
+    margin-top: 0.3rem;
+    color: var(--on-dark);
+    text-decoration-color: var(--heat-3);
+  }
+
+  @media (max-width: 60rem) {
+    .contact {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 30rem) {
+    .routes-list div {
+      grid-template-columns: 1fr;
+      gap: 0.25rem;
+    }
+  }
+</style>

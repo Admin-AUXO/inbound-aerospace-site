@@ -1,0 +1,82 @@
+---
+import HeroShell from './HeroShell.astro';
+import { news } from '../../data/pages';
+
+interface Props {
+  title: string;
+  lede: string;
+}
+
+const { title, lede } = Astro.props;
+const latest = news[0];
+---
+<HeroShell title={title} lede={lede}>
+  <slot />
+  <article slot="aside" class="latest">
+    <p class="latest__meta"><span>Latest</span><time datetime={latest.date}>{latest.label}</time></p>
+    <h2>{latest.title}</h2>
+    <p class="latest__text">{latest.text}</p>
+    {latest.href && (
+      <a class="latest__link" href={latest.href} target="_blank" rel="noopener">{latest.source ? `Read on ${latest.source}` : 'Read more'}<span aria-hidden="true"> →</span></a>
+    )}
+  </article>
+</HeroShell>
+
+<style>
+  .latest {
+    display: grid;
+    gap: 0.9rem;
+    justify-items: start;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--heat-3);
+    animation: rise 1s var(--ease) both;
+  }
+
+  .latest__meta {
+    display: flex;
+    gap: 1rem;
+    margin: 0;
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+  }
+
+  .latest__meta time {
+    color: var(--on-dark-soft);
+  }
+
+  h2 {
+    font-size: clamp(1.4rem, 2.2vw, 1.9rem);
+    font-weight: 480;
+    line-height: 1.12;
+    max-width: 22ch;
+  }
+
+  .latest__text {
+    font-size: 0.98rem;
+    line-height: 1.55;
+    max-width: 44ch;
+    color: var(--on-dark-soft);
+  }
+
+  .latest__link {
+    font-family: var(--display);
+    font-stretch: 108%;
+    font-weight: 500;
+    color: var(--on-dark);
+  }
+
+  .latest__link:hover {
+    color: var(--heat-3);
+  }
+
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(0.6rem); }
+    to { opacity: 1; transform: none; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .latest { animation: none; }
+  }
+</style>

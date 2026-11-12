@@ -1,0 +1,11 @@
+---
+import Base from '../layouts/Base.astro';
+import PageHero from '../components/PageHero.astro';
+import { pages } from '../data/pages';
+import { url } from '../lib/url';
+---
+<Base page={pages.privacy}>
+  <PageHero title="Privacy policy" lede="Inbound Aerospace’s privacy policy will be published on this page.">
+    <a class="arrow-link" href={url('/contact/')}>Questions in the meantime</a>
+  </PageHero>
+</Base>

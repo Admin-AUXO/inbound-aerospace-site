@@ -1,0 +1,252 @@
+---
+const panels = [
+  { mode: 0, label: 'On Earth, 1 g', note: 'Hot gas rises, drawing the flame into a teardrop and carrying soot to the tip, which glows yellow.' },
+  { mode: 1, label: 'In microgravity', note: 'No buoyancy, so no rising gas. Oxygen arrives only by diffusion and the flame settles into a small, slow, blue sphere.' }
+];
+---
+<figure class="flames" data-flames>
+  <div class="flames__pair">
+    {panels.map((p) => (
+      <div class="flames__panel">
+        <canvas data-flame={p.mode} role="img" aria-label={p.mode === 0 ? 'A candle flame in normal gravity: a tall yellow teardrop with a blue base' : 'A candle flame in microgravity: a small, dim, blue sphere around the wick'}></canvas>
+        <div class="flames__text">
+          <p class="flames__label">{p.label}</p>
+          <p class="flames__note">{p.note}</p>
+        </div>
+      </div>
+    ))}
+  </div>
+  <figcaption>Rendered in code after NASA’s microgravity candle experiments. Same scale in both panels.</figcaption>
+</figure>
+
+<script>
+  const frag = `
+    precision highp float;
+    uniform vec2 res;
+    uniform float t;
+    uniform float mode;
+
+    float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+    float noise(vec2 p) {
+      vec2 i = floor(p);
+      vec2 f = fract(p);
+      f = f * f * (3.0 - 2.0 * f);
+      return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y);
+    }
+    float fbm(vec2 p) {
+      float v = 0.0;
+      float a = 0.5;
+      for (int i = 0; i < 4; i++) { v += a * noise(p); p *= 2.03; a *= 0.5; }
+      return v;
+    }
+
+    vec3 candle(vec2 uv, vec3 col, float m) {
+      float x = abs(uv.x);
+      float body = smoothstep(0.112, 0.104, x) * smoothstep(-0.442, -0.452, uv.y);
+      float n = clamp(uv.x / 0.11, -1.0, 1.0);
+      float shade = sqrt(max(0.0, 1.0 - n * n));
+      vec3 wax = vec3(0.86, 0.82, 0.76) * (0.18 + 0.5 * shade + 0.12 * smoothstep(-0.6, 0.6, n));
+      float near = smoothstep(-0.85, -0.45, uv.y);
+      vec3 light = m < 0.5 ? vec3(1.0, 0.62, 0.3) * 0.55 : vec3(0.25, 0.35, 1.0) * 0.18;
+      wax += light * near * near * (0.4 + 0.6 * shade);
+      float rim = smoothstep(0.012, 0.0, abs(uv.y + 0.447)) * smoothstep(0.11, 0.06, x);
+      wax += light * rim * 0.6;
+      return mix(col, wax, body);
+    }
+
+    vec3 earthFlame(vec2 uv, float time) {
+      vec2 p = (uv - vec2(0.0, -0.31)) / 1.12;
+      float h = clamp(p.y / 0.95, 0.0, 1.0);
+      float sway = (fbm(vec2(p.y * 2.2 - time * 2.4, time * 0.5)) - 0.5) * 0.16 * h * h;
+      float pulse = 1.0 + 0.04 * sin(time * 9.0) * h;
+      p.x -= sway;
+      float taper = 1.0 - 0.82 * smoothstep(0.05, 0.86, p.y);
+      vec2 e = vec2(p.x / (0.135 * taper), (p.y - 0.2) / (p.y > 0.2 ? 0.66 * pulse : 0.27));
+      float d = length(e);
+      float shape = smoothstep(1.0, 0.72, d);
+      vec3 white = vec3(1.0, 0.95, 0.84);
+      vec3 yellow = vec3(1.0, 0.72, 0.3);
+      vec3 orange = vec3(0.95, 0.38, 0.08);
+      vec3 blue = vec3(0.2, 0.35, 1.0);
+      vec3 c = mix(orange, yellow, smoothstep(1.0, 0.68, d));
+      c = mix(c, white, smoothstep(0.62, 0.18, d) * smoothstep(-0.02, 0.3, p.y));
+      float base = smoothstep(0.1, -0.1, p.y);
+      c = mix(c, blue * 0.9, base);
+      float dark = smoothstep(0.42, 0.0, length(vec2(p.x / 0.05, (p.y + 0.02) / 0.15)));
+      c *= 1.0 - 0.6 * dark;
+      float a = shape * (1.0 - base * 0.45);
+      float halo = exp(-d * d * 0.9) * 0.07;
+      vec3 col = c * a * 1.25 + vec3(1.0, 0.55, 0.2) * halo;
+      float wick = smoothstep(0.012, 0.006, abs(uv.x - 0.012 * (uv.y + 0.45) * 3.0)) * smoothstep(-0.46, -0.45, uv.y) * smoothstep(-0.2, -0.22, uv.y);
+      col = mix(col, vec3(0.03, 0.02, 0.02) + vec3(0.9, 0.3, 0.05) * smoothstep(-0.25, -0.21, uv.y), wick);
+      return col;
+    }
+
+    vec3 orbitFlame(vec2 uv, float time) {
+      vec2 c = vec2(0.0, -0.285);
+      vec2 q = uv - c;
+      float R = 0.185 + 0.003 * sin(time * 0.9);
+      float sigma = 0.022;
+      float quench = -0.15;
+      float rho = length(q);
+      float zMax = R + 3.0 * sigma;
+      float I = 0.0;
+      float core = 0.0;
+      for (int k = 0; k < 40; k++) {
+        float z = -zMax + 2.0 * zMax * (float(k) + 0.5) / 40.0;
+        vec3 x = vec3(q, z);
+        float r = length(x);
+        float wobble = (noise(vec2(atan(x.y, x.x) * 1.5 + time * 0.08, z * 3.0)) - 0.5) * 0.006;
+        float sheet = exp(-pow((r - R - wobble) / sigma, 2.0));
+        float alive = smoothstep(quench - 0.03, quench + 0.02, x.y);
+        I += sheet * alive;
+        core += exp(-pow(r / (R * 0.55), 2.0)) * alive;
+      }
+      I *= 2.0 * zMax / 40.0;
+      core *= 2.0 * zMax / 40.0;
+      float shellNorm = I / (sigma * 1.7725 * 2.2);
+      vec3 blue = vec3(0.12, 0.26, 1.0);
+      vec3 col = blue * shellNorm * 0.55 + vec3(0.04, 0.07, 0.3) * core * 0.45;
+      col += vec3(0.4, 0.55, 1.0) * pow(clamp(shellNorm, 0.0, 1.5), 3.0) * 0.06;
+      float wick = smoothstep(0.012, 0.006, abs(uv.x)) * smoothstep(-0.46, -0.45, uv.y) * smoothstep(-0.25, -0.27, uv.y);
+      col = mix(col, vec3(0.02, 0.02, 0.03), wick * 0.85);
+      return col;
+    }
+
+    void main() {
+      vec2 uv = (gl_FragCoord.xy - 0.5 * res) / res.y * 2.0;
+      uv.y += 0.08;
+      vec3 col = vec3(0.0);
+      if (mode < 0.5) col = earthFlame(uv, t); else col = orbitFlame(uv, t);
+      col = candle(uv, col, mode);
+      col = 1.0 - exp(-col * 1.5);
+      float vig = smoothstep(1.6, 0.4, length(uv * vec2(1.2, 0.9)));
+      col *= 0.7 + 0.3 * vig;
+      col += (hash(gl_FragCoord.xy + t) - 0.5) * 0.012;
+      gl_FragColor = vec4(col, 1.0);
+    }
+  `;
+  const vert = `attribute vec2 pos; void main() { gl_Position = vec4(pos, 0.0, 1.0); }`;
+
+  const setup = (canvas: HTMLCanvasElement) => {
+    const gl = canvas.getContext('webgl', { antialias: false, premultipliedAlpha: false });
+    if (!gl) return null;
+    const compile = (type: number, src: string) => {
+      const s = gl.createShader(type)!;
+      gl.shaderSource(s, src);
+      gl.compileShader(s);
+      return s;
+    };
+    const prog = gl.createProgram()!;
+    gl.attachShader(prog, compile(gl.VERTEX_SHADER, vert));
+    gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, frag));
+    gl.linkProgram(prog);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) return null;
+    gl.useProgram(prog);
+    const buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+    const loc = gl.getAttribLocation(prog, 'pos');
+    gl.enableVertexAttribArray(loc);
+    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+    const uRes = gl.getUniformLocation(prog, 'res');
+    const uT = gl.getUniformLocation(prog, 't');
+    gl.uniform1f(gl.getUniformLocation(prog, 'mode'), Number(canvas.dataset.flame));
+    return (time: number) => {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const w = Math.round(canvas.clientWidth * dpr);
+      const h = Math.round(canvas.clientHeight * dpr);
+      if (canvas.width !== w || canvas.height !== h) {
+        canvas.width = w;
+        canvas.height = h;
+      }
+      gl.viewport(0, 0, w, h);
+      gl.uniform2f(uRes, w, h);
+      gl.uniform1f(uT, time);
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    };
+  };
+
+  const root = document.querySelector<HTMLElement>('[data-flames]');
+  if (root) {
+    const draws = [...root.querySelectorAll<HTMLCanvasElement>('[data-flame]')].map(setup).filter(Boolean) as ((t: number) => void)[];
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let raf = 0;
+    const start = performance.now();
+    const loop = (now: number) => {
+      const t = (now - start) / 1000;
+      draws.forEach((d) => d(t));
+      raf = requestAnimationFrame(loop);
+    };
+    if (reduce) {
+      draws.forEach((d) => d(2.0));
+    } else {
+      new IntersectionObserver(([e]) => {
+        cancelAnimationFrame(raf);
+        if (e.isIntersecting) raf = requestAnimationFrame(loop);
+        else draws.forEach((d) => d((performance.now() - start) / 1000));
+      }).observe(root);
+    }
+    draws.forEach((d) => d(1.0));
+  }
+</script>
+
+<style>
+  .flames {
+    margin: 0;
+  }
+
+  .flames__pair {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2px;
+    background: var(--rule-dark);
+    border: 1px solid var(--rule-dark);
+  }
+
+  .flames__panel {
+    display: flex;
+    flex-direction: column;
+    background: var(--black);
+  }
+
+  canvas {
+    display: block;
+    width: 100%;
+    aspect-ratio: 3 / 4;
+    background: #000;
+  }
+
+  .flames__text {
+    flex: 1;
+    padding: clamp(0.9rem, 2vw, 1.25rem);
+    border-top: 1px solid var(--rule-dark);
+  }
+
+  .flames__label {
+    font-family: var(--display);
+    font-size: clamp(1rem, 1.6vw, 1.2rem);
+    font-weight: 550;
+    color: var(--on-dark);
+  }
+
+  .flames__note {
+    margin-top: 0.35rem;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    color: var(--on-dark-soft);
+    max-width: 34ch;
+  }
+
+  figcaption {
+    margin-top: 0.9rem;
+    font-size: 0.8125rem;
+    color: var(--ink-dim);
+  }
+
+  @media (max-width: 40rem) {
+    .flames__note {
+      font-size: 0.8125rem;
+    }
+  }
+</style>

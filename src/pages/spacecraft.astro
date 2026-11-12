@@ -1,0 +1,234 @@
+---
+import Base from '../layouts/Base.astro';
+import PageHero from '../components/PageHero.astro';
+import NextChapter from '../components/NextChapter.astro';
+import MissionProfile from '../components/MissionProfile.astro';
+import { Image } from 'astro:assets';
+import side from '../assets/vehicle/side.png';
+import landing from '../assets/vehicle/landing.png';
+import { pages, spacecraft } from '../data/pages';
+import { readout } from '../data/site';
+import { abs, url } from '../lib/url';
+
+const page = pages.spacecraft;
+const schema = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: spacecraft.qa.map((x) => ({ '@type': 'Question', name: x.q, acceptedAnswer: { '@type': 'Answer', text: x.a } }))
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'Service',
+    name: 'Long-duration microgravity flights with runway return',
+    serviceType: 'Microgravity research and in-space manufacturing flights',
+    provider: { '@id': abs('/#organization') },
+    areaServed: 'Worldwide',
+    url: abs(page.path)
+  }
+];
+---
+<Base page={page} schema={schema} markdown="/spacecraft.md">
+  <PageHero title="A wingless lifting body for research in orbit" lede={spacecraft.lede} tiles>
+    <dl class="mini-readout">
+      {readout.map((r) => (
+        <div>
+          <dt class="meta">{r.label}</dt>
+          <dd>{r.value}</dd>
+        </div>
+      ))}
+    </dl>
+  </PageHero>
+
+  <section class="zone zone--light" aria-labelledby="qa-title">
+    <div class="wrap how">
+      <div class="how__side">
+        <h2 id="qa-title" class="lead__title">How it works</h2>
+        <p class="lead__text">The short answers to the questions researchers and engineers ask first.</p>
+        <nav class="how__index" aria-label="Questions">
+          {spacecraft.qa.map((x, i) => <a href={`#how-${i + 1}`}>{x.q}</a>)}
+        </nav>
+      </div>
+      <div class="how__list">
+        {spacecraft.qa.map((x, i) => (
+          <article class="how__item" id={`how-${i + 1}`}>
+            <h3>{x.q}</h3>
+            <p>{x.a}</p>
+          </article>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <section class="zone zone--dark" aria-labelledby="views-title">
+    <div class="wrap">
+      <div class="lead">
+        <h2 id="views-title" class="lead__title">The vehicle</h2>
+        <p class="lead__text">White upper surfaces, a black thermal-protected underside and twin tail fins. Renders of the current design.</p>
+      </div>
+      <div class="views">
+        <figure>
+          <Image src={side} alt="Side view render of the Inbound spacecraft" widths={[600, 915]} sizes="(max-width: 60rem) 92vw, 46rem" />
+          <figcaption>Side view</figcaption>
+        </figure>
+        <figure>
+          <Image src={landing} alt="Rear view render of the Inbound spacecraft with its landing gear deployed" widths={[400, 637]} sizes="(max-width: 60rem) 92vw, 30rem" />
+          <figcaption>Landing configuration</figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <section class="zone zone--dark zone--joined" aria-labelledby="profile-title-h">
+    <div class="wrap">
+      <div class="lead">
+        <h2 id="profile-title-h" class="lead__title">Mission profile</h2>
+        <p class="lead__text">From integration on the ground to handover on the runway.</p>
+      </div>
+      <MissionProfile />
+    </div>
+  </section>
+
+  <NextChapter page={pages.payloads} line="What flies, and how an experiment gets to orbit and back." />
+</Base>
+
+<style>
+  .mini-readout {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem 2.5rem;
+    margin: 1rem 0 0;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--rule-dark);
+  }
+
+  .mini-readout dt {
+    color: var(--ink-dim);
+  }
+
+  .mini-readout dd {
+    margin: 0.25rem 0 0;
+    font-family: var(--display);
+    font-size: 1.15rem;
+    font-weight: 500;
+  }
+
+  .how {
+    display: grid;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    gap: clamp(2.5rem, 6vw, 5rem);
+    align-items: start;
+  }
+
+  .how__side {
+    display: grid;
+    gap: 1.5rem;
+  }
+
+  .how__side .lead__text {
+    color: var(--ink-soft);
+    max-width: 34ch;
+  }
+
+  .how__index {
+    display: grid;
+    margin-top: 1rem;
+    border-top: 1px solid var(--ink);
+  }
+
+  .how__index a {
+    padding-block: 0.75rem;
+    border-bottom: 1px solid var(--rule-light);
+    font-family: var(--display);
+    font-weight: 500;
+    text-decoration: none;
+    color: var(--ink-soft);
+    transition: color 0.25s var(--ease), padding-left 0.35s var(--ease);
+  }
+
+  .how__index a:hover,
+  .how__index a:focus-visible {
+    padding-left: 0.5rem;
+    color: var(--heat-ink);
+  }
+
+  .how__list {
+    display: grid;
+  }
+
+  .how__item {
+    display: grid;
+    gap: 0.9rem;
+    padding-block: 2rem 2.5rem;
+    border-top: 1px solid var(--rule-light);
+    scroll-margin-top: 2rem;
+  }
+
+  .how__item:first-child {
+    padding-top: 0;
+    border-top: 0;
+  }
+
+  .how__item h3 {
+    font-size: clamp(1.6rem, 2.8vw, 2.4rem);
+    font-weight: 450;
+    font-stretch: 106%;
+    letter-spacing: -0.025em;
+    line-height: 1.1;
+  }
+
+  .how__item p {
+    max-width: 52ch;
+    font-size: 1.0625rem;
+    color: var(--ink-soft);
+  }
+
+  @media (min-width: 60.01rem) {
+    .how__side {
+      position: sticky;
+      top: 2.5rem;
+    }
+  }
+
+  .views {
+    display: grid;
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    gap: clamp(1.5rem, 4vw, 3rem);
+    align-items: stretch;
+  }
+
+  .views figure {
+    margin: 0;
+    display: grid;
+    align-content: space-between;
+    gap: 1rem;
+    padding: clamp(1rem, 3vw, 2rem);
+    border: 1px solid var(--rule-dark);
+  }
+
+  .views img {
+    width: 100%;
+    height: auto;
+  }
+
+  .views figcaption {
+    font-family: var(--display);
+    font-size: 0.75rem;
+    font-weight: 550;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+  }
+
+
+  @media (max-width: 60rem) {
+    .how,
+    .views {
+      grid-template-columns: 1fr;
+    }
+
+    .how__index {
+      display: none;
+    }
+  }
+</style>

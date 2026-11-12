@@ -1,0 +1,65 @@
+---
+import type { PageMeta } from '../data/pages';
+import { url } from '../lib/url';
+
+interface Props {
+  page: PageMeta;
+  line: string;
+}
+
+const { page, line } = Astro.props;
+---
+<nav class="next-chapter" aria-label="Next">
+  <a class="wrap next-chapter__link" href={url(page.path)}>
+    <span class="meta">Next: {page.label}</span>
+    <span class="next-chapter__line">{line}</span>
+    <svg viewBox="0 0 24 24" width="32" height="32" aria-hidden="true"><path d="M4 12h15M13 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="1.4" /></svg>
+  </a>
+</nav>
+
+<style>
+  .next-chapter {
+    background: var(--black);
+    border-top: 1px solid var(--rule-dark);
+  }
+
+  .next-chapter__link {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 0.75rem 2rem;
+    align-items: end;
+    padding-block: var(--space-section);
+    color: var(--on-dark);
+    text-decoration: none;
+  }
+
+  .meta {
+    grid-column: 1 / -1;
+    color: var(--heat-3);
+  }
+
+  .next-chapter__line {
+    font-family: var(--display);
+    font-size: clamp(1.8rem, 4.2vw, 3.6rem);
+    font-weight: 420;
+    letter-spacing: -0.035em;
+    line-height: 1.04;
+    max-width: 22ch;
+    text-wrap: balance;
+    transition: color 0.3s var(--ease);
+  }
+
+  svg {
+    color: var(--ink-dim);
+    transition: transform 0.4s var(--ease), color 0.3s var(--ease);
+  }
+
+  .next-chapter__link:hover .next-chapter__line {
+    color: var(--heat-4);
+  }
+
+  .next-chapter__link:hover svg {
+    color: var(--heat-3);
+    transform: translateX(6px);
+  }
+</style>

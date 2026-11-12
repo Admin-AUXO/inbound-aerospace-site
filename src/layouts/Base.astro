@@ -1,0 +1,413 @@
+---
+import '../styles/global.css';
+import '../styles/sections.css';
+import { site } from '../data/site';
+import { pages, mainNav, canonical as canonicalText, type PageMeta } from '../data/pages';
+import { url, abs, noindex, stripBase } from '../lib/url';
+import { getImage } from 'astro:assets';
+import logoDark from '../assets/brand/logo-on-dark.svg';
+import logoPng from '../assets/brand/logo-on-dark.png';
+import sairaFont from '@fontsource-variable/saira/files/saira-latin-wdth-normal.woff2?url';
+import interFont from '@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?url';
+
+interface Props {
+  page: PageMeta;
+  schema?: object[];
+  markdown?: string;
+}
+
+const { page, schema = [], markdown } = Astro.props;
+const canonicalUrl = new URL(Astro.url.pathname, Astro.site);
+const current = stripBase(Astro.url.pathname);
+const share = await getImage({ src: logoPng, width: 1200, height: 630, fit: 'contain', background: '#111214', format: 'png' });
+const shareUrl = new URL(share.src, Astro.site).href;
+const robots = noindex || page.noindex ? 'noindex, nofollow' : 'index, follow, max-image-preview:large';
+
+const org = {
+  '@context': 'https://schema.org',
+  '@type': 'Organization',
+  '@id': abs('/#organization'),
+  name: site.name,
+  legalName: site.legalName,
+  url: abs('/'),
+  logo: abs('/logo.svg'),
+  description: canonicalText,
+  foundingDate: site.founded,
+  address: {
+    '@type': 'PostalAddress',
+    streetAddress: site.address.street,
+    addressLocality: site.address.city,
+    addressRegion: site.address.region,
+    postalCode: site.address.postcode,
+    addressCountry: site.address.country
+  },
+  sameAs: site.sameAs
+};
+const crumbs =
+  page.path === '/'
+    ? []
+    : [
+        {
+          '@context': 'https://schema.org',
+          '@type': 'BreadcrumbList',
+          itemListElement: [
+            { '@type': 'ListItem', position: 1, name: 'Home', item: abs('/') },
+            { '@type': 'ListItem', position: 2, name: page.label, item: abs(page.path) }
+          ]
+        }
+      ];
+const ld = [org, ...crumbs, ...schema];
+const footerCols = [
+  { title: 'Company', links: [pages.about, pages.news, pages.careers, pages.contact] },
+  { title: 'Programme', links: [pages.spacecraft, pages.payloads, pages.science, pages.pads] }
+];
+---
+<!doctype html>
+<html lang="en-IN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>{page.title}</title>
+    <meta name="description" content={page.description} />
+    <meta name="robots" content={robots} />
+    <link rel="canonical" href={canonicalUrl} />
+    <meta name="theme-color" content="#111214" />
+    <link rel="preload" href={sairaFont} as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href={interFont} as="font" type="font/woff2" crossorigin />
+    <link rel="icon" href={url('/favicon.svg')} type="image/svg+xml" />
+    <link rel="icon" href={url('/favicon-32.png')} sizes="32x32" type="image/png" />
+    <link rel="apple-touch-icon" href={url('/apple-touch-icon.png')} />
+    <link rel="manifest" href={url('/site.webmanifest')} />
+    <link rel="sitemap" href={url('/sitemap-index.xml')} />
+    <link rel="describedby" type="text/plain" href={abs('/llms.txt')} />
+    {markdown && <link rel="alternate" type="text/markdown" href={abs(markdown)} />}
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content={site.name} />
+    <meta property="og:locale" content="en_IN" />
+    <meta property="og:title" content={page.title} />
+    <meta property="og:description" content={page.description} />
+    <meta property="og:url" content={canonicalUrl} />
+    <meta property="og:image" content={shareUrl} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={page.title} />
+    <meta name="twitter:description" content={page.description} />
+    <meta name="twitter:image" content={shareUrl} />
+    {ld.map((s) => <script type="application/ld+json" set:html={JSON.stringify(s)} />)}
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <header class="top" data-top>
+      <div class="wrap top__inner">
+        <a class="top__logo" href={url('/')} aria-label={`${site.name}, home`}>
+          <img src={logoDark.src} alt="" width="150" height="50" />
+        </a>
+        <nav class="top__nav" aria-label="Main">
+          {mainNav.map((p) => (
+            <a href={url(p.path)} aria-current={current === p.path ? 'page' : undefined}>{p.label}</a>
+          ))}
+        </nav>
+        <a class="btn btn--heat top__cta" href={url('/contact/')}>Contact</a>
+        <button class="top__menu" type="button" aria-expanded="false" aria-controls="mobile-nav" data-menu>
+          <span class="sr-only">Menu</span>
+          <span class="top__bars" aria-hidden="true"></span>
+        </button>
+      </div>
+      <nav class="mobile-nav" id="mobile-nav" aria-label="Mobile" hidden data-mobile>
+        <div class="wrap">
+          {[...mainNav, pages.contact].map((p) => (
+            <a href={url(p.path)} aria-current={current === p.path ? 'page' : undefined}>{p.label}</a>
+          ))}
+        </div>
+      </nav>
+    </header>
+
+    <main id="main">
+      <slot />
+    </main>
+
+    <footer class="foot zone--dark">
+      <div class="wrap foot__grid">
+        <div class="foot__brand">
+          <img src={logoDark.src} alt={site.name} width="180" height="60" loading="lazy" />
+          <p>{site.tagline}</p>
+        </div>
+        {footerCols.map((c) => (
+          <nav aria-label={c.title}>
+            <p class="foot__label">{c.title}</p>
+            <ul>
+              {c.links.map((p) => <li><a href={url(p.path)}>{p.label}</a></li>)}
+            </ul>
+          </nav>
+        ))}
+        <div>
+          <p class="foot__label">Address</p>
+          <address>
+            IIT Madras Incubation Cell<br />
+            D Block, 3rd Floor, IITM Research Park<br />
+            Taramani, Chennai 600113
+          </address>
+          <a class="foot__map" href={site.mapsLink} target="_blank" rel="noopener">Open in Google Maps</a>
+        </div>
+      </div>
+      <div class="wrap foot__base">
+        <p>© {new Date().getFullYear()} {site.legalName}</p>
+        <p class="foot__credit">Earth imagery: <a href="https://www.solarsystemscope.com/textures/" target="_blank" rel="noopener">Solar System Scope</a>, CC BY 4.0.</p>
+        <p><a href={url(pages.privacy.path)}>Privacy policy</a> · <a href={url(pages.terms.path)}>Terms of service</a></p>
+      </div>
+    </footer>
+
+    <script>
+      const btn = document.querySelector<HTMLButtonElement>('[data-menu]');
+      const panel = document.querySelector<HTMLElement>('[data-mobile]');
+      const top = document.querySelector<HTMLElement>('[data-top]');
+      btn?.addEventListener('click', () => {
+        const open = btn.getAttribute('aria-expanded') !== 'true';
+        btn.setAttribute('aria-expanded', String(open));
+        if (panel) panel.hidden = !open;
+        top?.classList.toggle('is-open', open);
+      });
+    </script>
+
+    <style>
+      .skip {
+        position: fixed;
+        top: 0.75rem;
+        left: 0.75rem;
+        z-index: 100;
+        padding: 0.6rem 1rem;
+        background: var(--ceramic);
+        color: var(--ink);
+        transform: translateY(-200%);
+      }
+
+      .skip:focus {
+        transform: none;
+      }
+
+      .top {
+        position: absolute;
+        inset: 0 0 auto;
+        z-index: 20;
+        padding-top: env(safe-area-inset-top, 0px);
+        color: var(--on-dark);
+      }
+
+      .top.is-open {
+        background: var(--black);
+      }
+
+      .top__inner {
+        display: flex;
+        align-items: center;
+        gap: 2rem;
+        min-height: 5.5rem;
+      }
+
+      .top__logo img {
+        width: clamp(7.5rem, 10vw, 9rem);
+        height: auto;
+      }
+
+      .top__nav {
+        display: flex;
+        gap: 1.6rem;
+        margin-left: auto;
+        font-family: var(--display);
+        font-size: 0.9375rem;
+        font-weight: 500;
+      }
+
+      .top__nav a {
+        text-decoration: none;
+        padding-block: 0.4rem;
+        border-bottom: 1px solid transparent;
+        color: var(--on-dark-soft);
+        transition: color 0.25s var(--ease), border-color 0.25s var(--ease);
+      }
+
+      .top__nav a:hover,
+      .top__nav a[aria-current='page'] {
+        color: var(--on-dark);
+        border-bottom-color: var(--heat-3);
+      }
+
+      .top__cta {
+        min-height: 2.6rem;
+        padding: 0.5rem 1.1rem;
+        font-size: 0.9375rem;
+      }
+
+      .top__menu {
+        display: none;
+        width: 2.75rem;
+        height: 2.75rem;
+        border: 1px solid rgb(236 235 230 / 0.35);
+        border-radius: 2px;
+        background: none;
+        cursor: pointer;
+      }
+
+      .top__bars,
+      .top__bars::before,
+      .top__bars::after {
+        display: block;
+        width: 1.1rem;
+        height: 1.5px;
+        margin-inline: auto;
+        background: var(--on-dark);
+        transition: transform 0.3s var(--ease), opacity 0.3s var(--ease);
+      }
+
+      .top__bars {
+        position: relative;
+      }
+
+      .top__bars::before,
+      .top__bars::after {
+        content: '';
+        position: absolute;
+        left: 0;
+      }
+
+      .top__bars::before {
+        top: -6px;
+      }
+
+      .top__bars::after {
+        top: 6px;
+      }
+
+      [aria-expanded='true'] .top__bars {
+        background: transparent;
+      }
+
+      [aria-expanded='true'] .top__bars::before {
+        transform: translateY(6px) rotate(45deg);
+      }
+
+      [aria-expanded='true'] .top__bars::after {
+        transform: translateY(-6px) rotate(-45deg);
+      }
+
+      .mobile-nav .wrap {
+        display: grid;
+        padding-block: 0.5rem 1.5rem;
+      }
+
+      .mobile-nav a {
+        padding-block: 0.85rem;
+        border-top: 1px solid var(--rule-dark);
+        font-family: var(--display);
+        font-size: 1.25rem;
+        text-decoration: none;
+      }
+
+      .mobile-nav a[aria-current='page'] {
+        color: var(--heat-3);
+      }
+
+      @media (max-width: 68rem) {
+        .top__nav {
+          display: none;
+        }
+
+        .top__cta {
+          margin-left: auto;
+        }
+
+        .top__menu {
+          display: block;
+        }
+      }
+
+      @media (max-width: 26rem) {
+        .top__cta {
+          display: none;
+        }
+
+        .top__menu {
+          margin-left: auto;
+        }
+      }
+
+      .foot {
+        padding-block: clamp(4rem, 8vw, 6rem) 2rem;
+        color: var(--on-dark-soft);
+      }
+
+      .foot__grid {
+        display: grid;
+        grid-template-columns: 1.3fr 0.9fr 0.9fr 1.5fr;
+        gap: 3rem;
+      }
+
+      .foot__brand img {
+        width: 10rem;
+        height: auto;
+        margin-bottom: 1rem;
+      }
+
+      .foot__label {
+        margin-bottom: 0.9rem;
+        font-family: var(--display);
+        font-size: 0.75rem;
+        font-weight: 550;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--on-dark);
+      }
+
+      .foot ul {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        display: grid;
+        gap: 0.45rem;
+      }
+
+      .foot a {
+        text-decoration: none;
+      }
+
+      .foot a:hover {
+        color: var(--heat-3);
+      }
+
+      address {
+        font-style: normal;
+        margin-bottom: 0.75rem;
+      }
+
+      .foot__map {
+        border-bottom: 1px solid var(--heat-3);
+      }
+
+      .foot__base {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-top: 4rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid var(--rule-dark);
+        font-size: 0.875rem;
+        color: var(--ink-dim);
+      }
+
+      @media (max-width: 60rem) {
+        .foot__grid {
+          grid-template-columns: 1fr 1fr;
+        }
+      }
+
+      @media (max-width: 36rem) {
+        .foot__grid {
+          grid-template-columns: 1fr;
+          gap: 2.25rem;
+        }
+      }
+    </style>
+  </body>
+</html>

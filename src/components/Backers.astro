@@ -1,0 +1,47 @@
+---
+import { Image } from 'astro:assets';
+import { investors } from '../data/pages';
+import speciale from '../assets/investors/speciale.png';
+import piper from '../assets/investors/piper-serica.png';
+
+const logos = { speciale, piper } as const;
+---
+<ul class="backers">
+  {investors.map((inv) => (
+    <li>
+      <a href={inv.url} target="_blank" rel="noopener" class:list={['backer', `backer--${inv.logo}`]}>
+        <Image src={logos[inv.logo as keyof typeof logos]} alt={inv.name} height={inv.logo === 'piper' ? 72 : 38} />
+      </a>
+    </li>
+  ))}
+</ul>
+
+<style>
+  .backers {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: clamp(2rem, 5vw, 4rem);
+  }
+
+  .backer img {
+    width: auto;
+    opacity: 0.8;
+    transition: opacity 0.3s var(--ease);
+  }
+
+  .backer:hover img {
+    opacity: 1;
+  }
+
+  .backer--speciale img {
+    height: 1.9rem;
+  }
+
+  .backer--piper img {
+    height: 3.6rem;
+  }
+</style>

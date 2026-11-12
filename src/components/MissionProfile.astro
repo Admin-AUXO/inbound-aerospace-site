@@ -1,0 +1,339 @@
+---
+import { phases } from '../data/site';
+
+const W = 1200;
+const H = 440;
+const climb = 'M60,380 C120,380 170,300 210,210 C245,135 280,96 340,92 L760,92';
+const glide = 'M760,92 C860,96 930,170 985,250 C1030,315 1060,362 1110,372';
+const labels = [
+  { x: 60, y: 380, tx: 60, ty: 412, anchor: 'start', text: 'Integration' },
+  { x: 210, y: 210, tx: 226, ty: 214, anchor: 'start', text: 'Launch' },
+  { x: 550, y: 92, tx: 550, ty: 72, anchor: 'middle', text: 'On orbit · 350–450 km · weeks' },
+  { x: 760, y: 92, tx: 772, ty: 72, anchor: 'start', text: 'Entry interface' },
+  { x: 1110, y: 372, tx: 1110, ty: 412, anchor: 'end', text: 'Runway touchdown' }
+];
+---
+<div class="profile" data-profile>
+  <div class="profile__frame">
+    <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-labelledby="profile-title">
+      <title id="profile-title">Mission profile: launch, weeks on orbit, gliding re-entry at up to 2 g and a runway landing</title>
+      <g class="ref" data-reveal>
+        <line x1="40" x2="1180" y1="150" y2="150" class="karman" />
+        <text x="1180" y="142" text-anchor="end" class="axis">Kármán line, 100 km</text>
+        <line x1="1040" x2="1180" y1="380" y2="380" class="runway" />
+      </g>
+      <path d={climb} class="track track--base" />
+      <path d={glide} class="track track--base" />
+      <path d={climb} class="track track--lit" pathLength="1" data-seg />
+      <path d={glide} class="track track--lit track--heat" pathLength="1" data-seg />
+      <text x="1000" y="205" class="axis axis--heat" data-reveal>≤ 2 g</text>
+      {labels.map((l, i) => (
+        <g class="mark" data-mark={i}>
+          <circle cx={l.x} cy={l.y} r="4.5" />
+          <text x={l.tx} y={l.ty} text-anchor={l.anchor} class="mark__label" data-reveal>{l.text}</text>
+        </g>
+      ))}
+      <circle r="7" class="craft" cx="60" cy="380" data-craft />
+    </svg>
+    <p class="profile__note" data-reveal>Schematic, not to scale.</p>
+  </div>
+  <ol class="legend">
+    {phases.map((p, i) => (
+      <li data-phase={i}>
+        <span class="legend__code">{p.code}</span>
+        <h3>{p.name}</h3>
+        <p>{p.text}</p>
+      </li>
+    ))}
+  </ol>
+</div>
+
+<script>
+  import { gsap } from 'gsap';
+  import { ScrollTrigger } from 'gsap/ScrollTrigger';
+
+  const root = document.querySelector<HTMLElement>('[data-profile]');
+  if (root) {
+    gsap.registerPlugin(ScrollTrigger);
+    const segs = [...root.querySelectorAll<SVGPathElement>('[data-seg]')];
+    const craft = root.querySelector<SVGCircleElement>('[data-craft]')!;
+    const marks = [...root.querySelectorAll<SVGGElement>('[data-mark]')];
+    const items = [...root.querySelectorAll<HTMLElement>('[data-phase]')];
+    const reveals = [...root.querySelectorAll<Element>('[data-reveal]')];
+    const lengths = segs.map((s) => s.getTotalLength());
+    const total = lengths[0] + lengths[1];
+
+    const pointAt = (p: number) => {
+      const d = p * total;
+      return d <= lengths[0] ? segs[0].getPointAtLength(d) : segs[1].getPointAtLength(d - lengths[0]);
+    };
+    const stops = marks.map((m) => {
+      const c = m.querySelector('circle')!;
+      const x = Number(c.getAttribute('cx'));
+      const y = Number(c.getAttribute('cy'));
+      let best = 0;
+      let bestD = Infinity;
+      for (let s = 0; s <= 600; s++) {
+        const pt = pointAt(s / 600);
+        const dd = (pt.x - x) ** 2 + (pt.y - y) ** 2;
+        if (dd < bestD) {
+          bestD = dd;
+          best = s / 600;
+        }
+      }
+      return best;
+    });
+
+    const render = (p: number) => {
+      const d = p * total;
+      segs[0].style.strokeDashoffset = String(1 - Math.min(1, d / lengths[0]));
+      segs[1].style.strokeDashoffset = String(1 - Math.max(0, Math.min(1, (d - lengths[0]) / lengths[1])));
+      const pt = pointAt(p);
+      craft.setAttribute('cx', pt.x.toFixed(1));
+      craft.setAttribute('cy', pt.y.toFixed(1));
+      const reached = stops.reduce((acc, s, i) => (p >= s - 0.003 ? i : acc), -1);
+      marks.forEach((m, i) => m.classList.toggle('is-passed', i <= reached));
+      items.forEach((it, i) => {
+        it.classList.toggle('is-reached', i <= reached);
+        it.classList.toggle('is-current', i === reached);
+      });
+      craft.classList.toggle('is-heat', d > lengths[0]);
+    };
+
+    const mm = gsap.matchMedia();
+    mm.add('(min-width: 60.01rem) and (prefers-reduced-motion: no-preference)', () => {
+      root.classList.add('is-live');
+      const pinTarget = root.closest<HTMLElement>('section') ?? root;
+      const state = { p: 0 };
+      render(0);
+      gsap.set(reveals, { opacity: 0 });
+      gsap.set(items, { opacity: 0, y: 16 });
+      const refresh = () => ScrollTrigger.refresh();
+      document.fonts?.ready.then(refresh);
+      window.addEventListener('load', refresh, { once: true });
+      const tl = gsap.timeline({
+        defaults: { ease: 'none' },
+        scrollTrigger: {
+          trigger: pinTarget,
+          start: () => `top+=${Math.max(0, parseFloat(getComputedStyle(pinTarget).paddingTop) - 28)} top`,
+          end: '+=140%',
+          pin: pinTarget,
+          scrub: 0.6,
+          anticipatePin: 1,
+          invalidateOnRefresh: true
+        }
+      });
+      tl.to(reveals, { opacity: 1, duration: 0.12, stagger: 0.015 })
+        .to(items, { opacity: 0.45, y: 0, duration: 0.12, stagger: 0.02 }, '<0.04')
+        .addLabel('draw')
+        .to(state, { p: 1, duration: 0.7, onUpdate: () => render(state.p) }, 'draw')
+        .to({}, { duration: 0.12 });
+      return () => {
+        root.classList.remove('is-live');
+        render(1);
+      };
+    });
+    mm.add('(max-width: 60rem), (prefers-reduced-motion: reduce)', () => {
+      render(1);
+    });
+  }
+</script>
+
+<style>
+  .profile {
+    background: var(--black);
+  }
+
+  .profile__frame {
+    position: relative;
+    overflow-x: auto;
+    padding: clamp(1rem, 3vw, 2.5rem) clamp(0.5rem, 2vw, 1.5rem) 0;
+    border-top: 1px solid var(--rule-dark);
+    border-bottom: 1px solid var(--rule-dark);
+  }
+
+  svg {
+    display: block;
+    width: 100%;
+    min-width: 760px;
+    height: auto;
+    overflow: visible;
+  }
+
+  @media (min-width: 60.01rem) {
+    svg {
+      max-height: min(46vh, 440px);
+    }
+
+    .legend p {
+      font-size: 0.875rem;
+    }
+  }
+
+  .karman {
+    stroke: var(--rule-dark);
+    stroke-dasharray: 3 6;
+  }
+
+  .axis {
+    font: 500 12px var(--display);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    fill: var(--ink-dim);
+  }
+
+  .axis--heat {
+    fill: var(--heat-3);
+    letter-spacing: 0.04em;
+    font-size: 14px;
+  }
+
+  .runway {
+    stroke: var(--on-dark);
+    stroke-width: 2;
+  }
+
+  .track {
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .track--base {
+    stroke: rgb(236 235 230 / 0.16);
+    stroke-width: 1.5;
+  }
+
+  .track--lit {
+    stroke: var(--on-dark);
+    stroke-width: 2;
+    stroke-dasharray: 1;
+    stroke-dashoffset: 0;
+  }
+
+  .track--heat {
+    stroke: var(--heat-3);
+    stroke-width: 2.5;
+    filter: drop-shadow(0 0 5px rgb(248 147 0 / 0.55));
+  }
+
+  .mark circle {
+    fill: var(--on-dark);
+    stroke: var(--on-dark);
+    stroke-width: 1.5;
+  }
+
+  .mark__label {
+    font: 500 13px var(--display);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    fill: var(--on-dark);
+  }
+
+  .craft {
+    display: none;
+    fill: var(--on-dark);
+    filter: drop-shadow(0 0 6px rgb(236 235 230 / 0.7));
+  }
+
+  .craft.is-heat {
+    fill: var(--heat-3);
+    filter: drop-shadow(0 0 8px rgb(248 147 0 / 0.85));
+  }
+
+  .is-live .craft {
+    display: block;
+  }
+
+  .is-live .mark circle {
+    fill: var(--black);
+    stroke: rgb(236 235 230 / 0.45);
+  }
+
+  .is-live .mark.is-passed circle {
+    fill: var(--on-dark);
+    stroke: var(--on-dark);
+  }
+
+  .is-live .mark__label {
+    fill: var(--on-dark-soft);
+  }
+
+  .is-live .mark.is-passed .mark__label {
+    fill: var(--on-dark);
+  }
+
+  .profile__note {
+    position: absolute;
+    right: clamp(0.5rem, 2vw, 1.5rem);
+    top: 0.9rem;
+    font-size: 0.75rem;
+    color: var(--ink-dim);
+  }
+
+  .legend {
+    list-style: none;
+    margin: clamp(1.75rem, 3vw, 2.5rem) 0 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 2rem;
+  }
+
+  .legend li {
+    padding-top: 1rem;
+    border-top: 1px solid var(--rule-dark);
+    transition: border-color 0.4s var(--ease);
+  }
+
+  .is-live .legend li.is-reached {
+    opacity: 1 !important;
+  }
+
+  .is-live .legend li.is-current {
+    border-top-color: var(--heat-3);
+  }
+
+  .legend__code {
+    display: block;
+    margin-bottom: 0.4rem;
+    font-family: var(--display);
+    font-size: 0.8125rem;
+    font-weight: 550;
+    letter-spacing: 0.14em;
+    color: var(--ink-dim);
+  }
+
+  .is-current .legend__code {
+    color: var(--heat-3);
+  }
+
+  .legend h3 {
+    margin-bottom: 0.5rem;
+    font-size: 1.1rem;
+  }
+
+  .legend p {
+    font-size: 0.9375rem;
+    color: var(--on-dark-soft);
+  }
+
+  @media (max-width: 60rem) {
+    .legend {
+      grid-template-columns: 1fr;
+      gap: 1.25rem;
+    }
+
+    .legend li {
+      display: grid;
+      grid-template-columns: 3.5rem 1fr;
+      column-gap: 1rem;
+    }
+
+    .legend__code {
+      grid-row: span 2;
+      font-size: 1.1rem;
+      color: var(--on-dark);
+    }
+  }
+</style>

@@ -1,0 +1,503 @@
+---
+import { url } from '../lib/url';
+---
+<div class="earth" aria-hidden="true">
+  <canvas data-earth-atmo data-day={url('/earth-day-4k.jpg')} data-night={url('/earth-lights-4k.jpg')} data-brc={url('/earth-brc-4k.jpg')} data-atmo={url('/atmosphere/')}></canvas>
+</div>
+
+<script>
+  const canvas = document.querySelector<HTMLCanvasElement>('[data-earth-atmo]');
+
+  const surfaceVert = `
+    varying vec2 vUv;
+    varying vec3 vPos;
+    void main() {
+      vUv = uv;
+      vPos = position;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `;
+
+  const surfaceFrag = `
+    uniform sampler2D dayMap;
+    uniform sampler2D brcMap;
+    uniform vec2 texel;
+    uniform float shift;
+    uniform float landGain;
+    uniform float cloudGain;
+    uniform float relief;
+    uniform vec3 sunDir;
+    varying vec2 vUv;
+    varying vec3 vPos;
+    float cloudAt(vec2 uv) {
+      return smoothstep(0.2, 0.82, texture2D(brcMap, vec2(uv.x + shift, uv.y)).b);
+    }
+    void main() {
+      vec3 p = normalize(vPos);
+      vec3 E = normalize(vec3(-p.y, p.x, 1e-5));
+      vec3 N = cross(p, E);
+      float sE = dot(sunDir, E);
+      float sN = dot(sunDir, N);
+      float sU = max(dot(sunDir, p), 0.0);
+      vec3 brc = texture2D(brcMap, vUv).rgb;
+      float land = smoothstep(0.3, 0.6, brc.g);
+      float hE = texture2D(brcMap, vUv + vec2(texel.x * 1.5, 0.0)).r - texture2D(brcMap, vUv - vec2(texel.x * 1.5, 0.0)).r;
+      float hN = texture2D(brcMap, vUv + vec2(0.0, texel.y * 1.5)).r - texture2D(brcMap, vUv - vec2(0.0, texel.y * 1.5)).r;
+      float shade = clamp(1.0 + relief * (sE * hE + sN * hN) * land / (0.3 + sU), 0.6, 1.4);
+      vec3 day = texture2D(dayMap, vUv).rgb * landGain * shade;
+      vec3 v = normalize(cameraPosition - vPos);
+      float mu = max(dot(p, v), 0.0);
+      float thick = 1.0 / (0.4 + 0.6 * mu);
+      float c = 1.0 - pow(1.0 - cloudAt(vUv), thick);
+      vec2 off = vec2(sE, sN) / (0.35 + sU) * 0.0007;
+      float s = cloudAt(vUv + off);
+      day *= 1.0 - 0.42 * s * (1.0 - c);
+      vec3 col = mix(day, vec3(cloudGain), c * 0.93);
+      float soft = smoothstep(-0.04, 0.34, dot(p, sunDir));
+      gl_FragColor = vec4(col * mix(0.05, 1.0, soft), 1.0);
+    }
+  `;
+
+  const extrasFrag = `
+    uniform sampler2D nightMap;
+    uniform sampler2D brcMap;
+    uniform mat4 inverseProjectionMatrix;
+    uniform mat4 inverseViewMatrix;
+    uniform vec3 camPos;
+    uniform vec3 sunDir;
+    uniform vec3 radii;
+    uniform float shift;
+    uniform float lightGain;
+    uniform float glintGain;
+    float hash(vec2 q) {
+      return fract(sin(dot(q, vec2(12.9898, 78.233))) * 43758.5453);
+    }
+    void mainImage(const in vec4 inputColor, const in vec2 uv, const in float depth, out vec4 outputColor) {
+      outputColor = inputColor;
+      if (depth >= 1.0 - 1e-8) return;
+      vec4 vp = inverseProjectionMatrix * vec4(uv * 2.0 - 1.0, 1.0, 1.0);
+      vec3 dirW = normalize((inverseViewMatrix * vec4(normalize(vp.xyz / vp.w), 0.0)).xyz);
+      vec3 o = camPos / radii;
+      vec3 d = dirW / radii;
+      float a = dot(d, d);
+      float b = dot(o, d);
+      float disc = b * b - a * (dot(o, o) - 1.0);
+      if (disc < 0.0) return;
+      float t = (-b - sqrt(disc)) / a;
+      vec3 p = camPos + dirW * t;
+      float lon = atan(p.y, p.x);
+      float beta = atan(p.z / radii.z, length(p.xy) / radii.x);
+      vec2 suv = vec2(lon / 6.28318530718 + 0.5, beta / 3.14159265359 + 0.5);
+      vec3 n = normalize(p);
+      float sunDot = dot(n, sunDir);
+      vec3 brc = texture2D(brcMap, suv).rgb;
+      float mu = max(dot(n, -dirW), 0.0);
+      float cloud = smoothstep(0.2, 0.82, texture2D(brcMap, vec2(suv.x + shift, suv.y)).b);
+      cloud = 1.0 - pow(1.0 - cloud, 1.0 / (0.4 + 0.6 * mu));
+      float night = 1.0 - smoothstep(-0.14, 0.05, sunDot);
+      float city = texture2D(nightMap, suv).r;
+      float cell = hash(floor(suv * vec2(1400.0, 700.0)));
+      float region = hash(floor(suv * vec2(60.0, 30.0)));
+      vec3 sodium = vec3(1.0, 0.58, 0.24);
+      vec3 warm = vec3(1.0, 0.82, 0.55);
+      vec3 led = vec3(0.82, 0.9, 1.0);
+      vec3 tint = mix(sodium, warm, smoothstep(0.2, 0.9, region));
+      tint = mix(tint, led, smoothstep(0.78, 1.0, cell * 0.6 + region * 0.4) * 0.7);
+      vec3 lights = pow(city, 1.2) * tint * lightGain * night * (1.0 - 0.88 * cloud);
+      float water = 1.0 - smoothstep(0.25, 0.6, brc.g);
+      vec3 h = normalize(sunDir - dirW);
+      float nh = max(dot(n, h), 0.0);
+      float fres = 0.02 + 0.98 * pow(1.0 - mu, 5.0);
+      float lobe = pow(nh, 1600.0) * (1602.0 / 25.1327) * fres;
+      float spec = lobe * water * (1.0 - cloud) * smoothstep(0.0, 0.15, sunDot);
+      outputColor.rgb += lights + spec * glintGain * vec3(1.0, 0.95, 0.85);
+    }
+  `;
+
+  const nav = navigator as Navigator & { deviceMemory?: number; connection?: { saveData?: boolean } };
+  const capable =
+    typeof WebGL2RenderingContext !== 'undefined' &&
+    innerWidth >= 900 &&
+    !(nav.deviceMemory && nav.deviceMemory < 4) &&
+    !nav.connection?.saveData &&
+    !matchMedia('(prefers-reduced-data: reduce)').matches;
+  document.documentElement.dataset.earthMode = capable ? 'atmo' : 'hero';
+
+  const fallback = () => {
+    document.documentElement.dataset.earthMode = 'hero';
+    canvas?.parentElement?.remove();
+    window.dispatchEvent(new Event('earth:fallback'));
+  };
+
+  const now = () => {
+    const o = import.meta.env.DEV ? new URLSearchParams(location.search).get('t') : null;
+    return o ? new Date(o) : new Date();
+  };
+
+  const loadLibs = () => Promise.all([import('three'), import('postprocessing'), import('@takram/three-atmosphere')]);
+  let libs: ReturnType<typeof loadLibs> | undefined;
+  const preload = () => (libs ??= loadLibs());
+
+  const start = async () => {
+    if (!canvas) return;
+    const [THREE, pp, atmo] = await preload();
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: false, powerPreference: 'high-performance', stencil: false, depth: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.setClearColor(0x000000, 1);
+
+    const A = 6378137;
+    const B = 6356752.314245;
+    const rad = Math.PI / 180;
+    const ecef = (lat: number, lon: number, r = 1) => new THREE.Vector3(Math.cos(lat * rad) * Math.cos(lon * rad), Math.cos(lat * rad) * Math.sin(lon * rad), Math.sin(lat * rad)).multiplyScalar(r);
+    const surfacePoint = (lat: number, lon: number, alt: number) => {
+      const p = new THREE.Vector3(A * Math.cos(lat * rad) * Math.cos(lon * rad), A * Math.cos(lat * rad) * Math.sin(lon * rad), B * Math.sin(lat * rad));
+      return p.add(p.clone().normalize().multiplyScalar(alt));
+    };
+
+    const loader = new THREE.TextureLoader();
+    const texturesReady = Promise.all([canvas.dataset.day!, canvas.dataset.night!, canvas.dataset.brc!].map((u) => loader.loadAsync(u)));
+
+    const precompute = (async () => {
+      try {
+        return await new atmo.PrecomputedTexturesLoader({ higherOrderScattering: false }).setType(renderer).loadAsync(canvas.dataset.atmo!);
+      } catch {
+        const generator = new atmo.PrecomputedTexturesGenerator(renderer);
+        await generator.update();
+        return generator.textures;
+      }
+    })();
+
+    const disposables: { dispose: () => void }[] = [];
+    const cleanup = () => {
+      for (const d of disposables) d.dispose();
+      renderer.dispose();
+      renderer.forceContextLoss();
+    };
+
+    try {
+      const [[dayMap, nightMap, brcMap], atmoTextures] = await Promise.all([texturesReady, precompute]);
+      disposables.push(dayMap, nightMap, brcMap);
+      dayMap.colorSpace = THREE.SRGBColorSpace;
+      nightMap.colorSpace = THREE.SRGBColorSpace;
+      const aniso = renderer.capabilities.getMaxAnisotropy();
+      for (const t of [dayMap, nightMap, brcMap]) t.anisotropy = aniso;
+      brcMap.wrapS = THREE.RepeatWrapping;
+      nightMap.needsUpdate = true;
+      dayMap.needsUpdate = true;
+
+      const cfg = { camLat: 17, camLon: 80, distance: 4.9 * A, fov: 28, landGain: 1.3, cloudGain: 1.0, lightGain: 5.0, glintGain: 0, relief: 5.0 };
+
+      const sunDirection = new THREE.Vector3();
+
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(cfg.fov, 1, 1e6, 2e8);
+      camera.up.set(0, 0, 1);
+
+      const sphereGeo = new THREE.SphereGeometry(1, 192, 128);
+      sphereGeo.rotateX(Math.PI / 2);
+      sphereGeo.scale(A, A, B);
+      disposables.push(sphereGeo);
+
+      const surface = new THREE.ShaderMaterial({
+        uniforms: { dayMap: { value: dayMap }, brcMap: { value: brcMap }, shift: { value: 0 }, landGain: { value: cfg.landGain }, cloudGain: { value: cfg.cloudGain }, relief: { value: cfg.relief }, texel: { value: new THREE.Vector2(1 / dayMap.image.width, 1 / dayMap.image.height) }, sunDir: { value: sunDirection } },
+        vertexShader: surfaceVert,
+        fragmentShader: surfaceFrag
+      });
+      disposables.push(surface);
+      scene.add(new THREE.Mesh(sphereGeo, surface));
+
+      const composer = new pp.EffectComposer(renderer, { frameBufferType: THREE.HalfFloatType, multisampling: 0 });
+      disposables.push(composer);
+      composer.addPass(new pp.RenderPass(scene, camera));
+
+      const aerial = new atmo.AerialPerspectiveEffect(camera, { sunLight: true, skyLight: true, sky: true, sun: false, moon: false, ...atmoTextures });
+
+      const extrasUniforms = new Map<string, InstanceType<typeof THREE.Uniform>>([
+        ['nightMap', new THREE.Uniform(nightMap)],
+        ['brcMap', new THREE.Uniform(brcMap)],
+        ['inverseProjectionMatrix', new THREE.Uniform(new THREE.Matrix4())],
+        ['inverseViewMatrix', new THREE.Uniform(new THREE.Matrix4())],
+        ['camPos', new THREE.Uniform(new THREE.Vector3())],
+        ['sunDir', new THREE.Uniform(sunDirection)],
+        ['radii', new THREE.Uniform(new THREE.Vector3(A, A, B))],
+        ['shift', new THREE.Uniform(0)],
+        ['lightGain', new THREE.Uniform(cfg.lightGain)],
+        ['glintGain', new THREE.Uniform(cfg.glintGain)]
+      ]);
+      class Extras extends pp.Effect {
+        constructor() {
+          super('EarthExtras', extrasFrag, { attributes: pp.EffectAttribute.DEPTH, uniforms: extrasUniforms });
+        }
+        update() {
+          extrasUniforms.get('inverseProjectionMatrix')!.value.copy(camera.projectionMatrixInverse);
+          extrasUniforms.get('inverseViewMatrix')!.value.copy(camera.matrixWorld);
+          extrasUniforms.get('camPos')!.value.copy(camera.position);
+        }
+      }
+      const bloom = new pp.BloomEffect({ intensity: 0.6, luminanceThreshold: 2.2, luminanceSmoothing: 0.4, mipmapBlur: true, radius: 0.45, levels: 4 });
+      disposables.push(bloom);
+      composer.addPass(new pp.EffectPass(camera, aerial, new Extras(), bloom, new pp.ToneMappingEffect({ mode: pp.ToneMappingMode.AGX })));
+
+      const updateSun = () => {
+        atmo.getSunDirectionECEF(now(), sunDirection);
+        aerial.sunDirection.copy(sunDirection);
+      };
+      updateSun();
+
+      const overlay = new THREE.Scene();
+      const depthOnly = new THREE.MeshBasicMaterial({ colorWrite: false });
+      disposables.push(depthOnly);
+      overlay.add(new THREE.Mesh(sphereGeo, depthOnly));
+
+      const starScene = new THREE.Scene();
+      const shell = new THREE.Mesh(sphereGeo, depthOnly);
+      shell.scale.setScalar(1.02);
+      starScene.add(shell);
+      const starCount = 420;
+      const starPos = new Float32Array(starCount * 3);
+      const starCol = new Float32Array(starCount * 3);
+      let seed = 7;
+      const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+      for (let i = 0; i < starCount; i++) {
+        const z = rnd() * 2 - 1;
+        const a = rnd() * Math.PI * 2;
+        const q = Math.sqrt(1 - z * z);
+        starPos.set([q * Math.cos(a) * 1.2e8, q * Math.sin(a) * 1.2e8, z * 1.2e8], i * 3);
+        const b = 0.1 + Math.pow(rnd(), 3) * 0.4;
+        const warm = rnd();
+        starCol.set([b * (0.85 + 0.15 * warm), b * 0.92, b * (1.0 - 0.15 * warm)], i * 3);
+      }
+      const starGeo = new THREE.BufferGeometry();
+      starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+      starGeo.setAttribute('color', new THREE.BufferAttribute(starCol, 3));
+      const starMat = new THREE.PointsMaterial({ size: 1.2 * renderer.getPixelRatio(), sizeAttenuation: false, vertexColors: true, depthWrite: false });
+      const stars = new THREE.Points(starGeo, starMat);
+      stars.frustumCulled = false;
+      starScene.add(stars);
+      disposables.push(starGeo, starMat);
+
+      const ceramic = 0xefede8;
+      const orbitR = A + 400000;
+      const oa = ecef(4, 58).normalize();
+      const toward = ecef(38, 128).normalize();
+      const ob = toward.clone().sub(oa.clone().multiplyScalar(toward.dot(oa))).normalize();
+      const ringGeo = new THREE.BufferGeometry().setFromPoints(
+        Array.from({ length: 721 }, (_, i) => {
+          const k = (i / 720) * Math.PI * 2;
+          return oa.clone().multiplyScalar(Math.cos(k) * orbitR).add(ob.clone().multiplyScalar(Math.sin(k) * orbitR));
+        })
+      );
+      const ringMat = new THREE.LineBasicMaterial({ color: ceramic, transparent: true, opacity: 0.2 });
+      disposables.push(ringGeo, ringMat);
+      overlay.add(new THREE.Line(ringGeo, ringMat));
+
+      const dot = new THREE.SphereGeometry(1, 12, 12);
+      const heatMat = new THREE.MeshBasicMaterial({ color: 0xf89300 });
+      const ceramicMat = new THREE.MeshBasicMaterial({ color: ceramic });
+      disposables.push(dot, heatMat, ceramicMat);
+      const chennai = new THREE.Mesh(dot, heatMat);
+      chennai.scale.setScalar(42000);
+      chennai.position.copy(surfacePoint(13.08, 80.27, 8000));
+      overlay.add(chennai);
+
+      const [vLat, vLon] = (document.documentElement.dataset.visitor ?? '').split(',').map(Number);
+      if (Number.isFinite(vLat) && Number.isFinite(vLon)) {
+        const you = new THREE.Mesh(dot, ceramicMat);
+        you.scale.setScalar(30000);
+        you.position.copy(surfacePoint(vLat, vLon, 8000));
+        overlay.add(you);
+      }
+
+      const dpr = renderer.getPixelRatio();
+      const seeds = [
+        [350, 28, 20, 31],
+        [380, 51, 95, 44],
+        [420, 98, 160, 52],
+        [450, 65, 250, 38],
+        [480, 45, 310, 27],
+        [520, 82, 40, 58],
+        [560, 35, 200, 34],
+        [600, 97, 280, 47],
+        [500, 53, 130, 60],
+        [1200, 70, 70, 90]
+      ];
+      const orbiters = seeds.map(([alt, inc, raan, period], i) => {
+        const O = raan * rad;
+        const I = inc * rad;
+        return {
+          r: A + alt * 1000,
+          w: (Math.PI * 2) / period,
+          phase: (i * 2.399) % (Math.PI * 2),
+          P: new THREE.Vector3(Math.cos(O), Math.sin(O), 0),
+          Q: new THREE.Vector3(-Math.sin(O) * Math.cos(I), Math.cos(O) * Math.cos(I), Math.sin(I))
+        };
+      });
+      const orbitGeo = new THREE.BufferGeometry();
+      orbitGeo.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(orbiters.length * 3), 3));
+      const orbitMat = new THREE.PointsMaterial({ color: ceramic, size: 1.7 * dpr, sizeAttenuation: false, transparent: true, opacity: 0.45, depthWrite: false });
+      const orbitPoints = new THREE.Points(orbitGeo, orbitMat);
+      orbitPoints.frustumCulled = false;
+      overlay.add(orbitPoints);
+      const craftGeo = new THREE.BufferGeometry();
+      craftGeo.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(3), 3));
+      const craftMat = new THREE.PointsMaterial({ color: 0xffffff, size: 2.4 * dpr, sizeAttenuation: false, transparent: true, opacity: 0.95, depthWrite: false });
+      const craft = new THREE.Points(craftGeo, craftMat);
+      craft.frustumCulled = false;
+      overlay.add(craft);
+      disposables.push(orbitGeo, orbitMat, craftGeo, craftMat);
+
+      const view = { d: cfg.distance };
+      const layout = () => {
+        const w = canvas.clientWidth;
+        const h = canvas.clientHeight;
+        if (!w || !h) return;
+        composer.setSize(w, h, false);
+        const narrow = w / h < 1;
+        const unit = h / 2 / (4.8 * Math.tan((cfg.fov / 2) * rad));
+        view.d = cfg.distance / (narrow ? 0.85 : 1);
+        camera.aspect = w / h;
+        camera.setViewOffset(w, h, -(narrow ? 0.25 : 1.3) * unit, (narrow ? -1.05 : -0.35) * unit, w, h);
+        camera.updateProjectionMatrix();
+      };
+
+      const pointer = { x: 0, y: 0, tx: 0, ty: 0 };
+      const onPointer = (e: PointerEvent) => {
+        pointer.tx = (e.clientX / innerWidth - 0.5) * 2.2;
+        pointer.ty = (e.clientY / innerHeight - 0.5) * 1.6;
+      };
+      window.addEventListener('pointermove', onPointer);
+
+      const pos = orbitGeo.getAttribute('position') as InstanceType<typeof THREE.BufferAttribute>;
+      const cpos = craftGeo.getAttribute('position') as InstanceType<typeof THREE.BufferAttribute>;
+      const draw = (t: number) => {
+        pointer.x += (pointer.tx - pointer.x) * 0.05;
+        pointer.y += (pointer.ty - pointer.y) * 0.05;
+        camera.position.copy(ecef(cfg.camLat - pointer.y, cfg.camLon + Math.sin(t * 0.05) * 0.5 + pointer.x, view.d));
+        camera.lookAt(0, 0, 0);
+        camera.updateMatrixWorld();
+        const shift = t * 0.0006;
+        surface.uniforms.shift.value = shift;
+        extrasUniforms.get('shift')!.value = shift;
+        orbiters.forEach((o, i) => {
+          const u = o.phase + o.w * t;
+          const c = Math.cos(u);
+          const s = Math.sin(u);
+          pos.setXYZ(i, (o.P.x * c + o.Q.x * s) * o.r, (o.P.y * c + o.Q.y * s) * o.r, (o.P.z * c + o.Q.z * s) * o.r);
+        });
+        pos.needsUpdate = true;
+        const k = 0.4 + (Math.PI * 2 * t) / 42;
+        cpos.setXYZ(0, (oa.x * Math.cos(k) + ob.x * Math.sin(k)) * orbitR, (oa.y * Math.cos(k) + ob.y * Math.sin(k)) * orbitR, (oa.z * Math.cos(k) + ob.z * Math.sin(k)) * orbitR);
+        cpos.needsUpdate = true;
+        composer.render();
+        renderer.autoClear = false;
+        renderer.clearDepth();
+        renderer.render(starScene, camera);
+        renderer.clearDepth();
+        renderer.render(overlay, camera);
+        renderer.autoClear = true;
+      };
+
+      layout();
+      let t = 0;
+      let raf = 0;
+      let last = 0;
+      let intersecting = true;
+      const loop = (ts: number) => {
+        t += Math.min((ts - last) / 1000, 0.05);
+        last = ts;
+        draw(t);
+        raf = requestAnimationFrame(loop);
+      };
+      const sync = () => {
+        cancelAnimationFrame(raf);
+        raf = 0;
+        if (reduce || !intersecting || document.hidden) return;
+        last = performance.now();
+        raf = requestAnimationFrame(loop);
+      };
+
+      new ResizeObserver(() => {
+        layout();
+        if (reduce || !raf) draw(t);
+      }).observe(canvas);
+      const tickSun = () => {
+        updateSun();
+        if (reduce || !raf) draw(t);
+      };
+      const minute = setInterval(tickSun, 60000);
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) tickSun();
+        sync();
+      });
+      window.addEventListener('pageshow', (e) => {
+        if (e.persisted) sync();
+      });
+      window.addEventListener('pagehide', (e) => {
+        if (e.persisted) return;
+        cancelAnimationFrame(raf);
+        clearInterval(minute);
+        window.removeEventListener('pointermove', onPointer);
+        cleanup();
+      });
+
+      draw(0);
+      canvas.classList.add('is-ready');
+      if (!reduce) {
+        new IntersectionObserver(([e]) => {
+          intersecting = e.isIntersecting;
+          sync();
+        }).observe(canvas);
+      }
+    } catch (error) {
+      cleanup();
+      throw error;
+    }
+  };
+
+  if (canvas && capable) {
+    const idle = window.requestIdleCallback ?? ((cb: () => void) => setTimeout(cb, 1));
+    idle(() => preload().catch(fallback));
+    const io = new IntersectionObserver(([e]) => {
+      if (e.isIntersecting) {
+        io.disconnect();
+        start().catch(fallback);
+      }
+    });
+    io.observe(canvas);
+  } else if (canvas) {
+    canvas.parentElement?.remove();
+  }
+</script>
+
+<style>
+  .earth {
+    position: absolute;
+    inset: 0;
+    background: #000;
+  }
+
+  canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+    opacity: 0;
+    transition: opacity 1.8s var(--ease);
+  }
+
+  canvas.is-ready {
+    opacity: 1;
+  }
+
+  @media (min-width: 900px) {
+    :global(html[data-earth-mode='atmo'] .hero h1) {
+      font-size: clamp(3rem, 5.4vw, 5rem) !important;
+    }
+
+    :global(html[data-earth-mode='atmo'] .hero__shade) {
+      background: linear-gradient(100deg, rgb(17 18 20 / 0.82) 0%, rgb(17 18 20 / 0.4) 32%, rgb(17 18 20 / 0) 48%);
+    }
+  }
+</style>

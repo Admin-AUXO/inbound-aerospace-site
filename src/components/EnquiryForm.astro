@@ -1,0 +1,101 @@
+---
+import { enquiry } from '../data/site';
+
+interface Props {
+  topic?: string;
+  title?: string;
+  lede?: string;
+}
+
+const { topic = enquiry.topics[0], title = enquiry.title, lede = enquiry.lede } = Astro.props;
+const payloadTopic = enquiry.topics[0];
+---
+<form id="enquire" class="enquiry" data-enquiry data-payload-topic={payloadTopic} novalidate>
+  <h2 class="enquiry__title">{title}</h2>
+  {lede && <p class="enquiry__lede">{lede}</p>}
+  <div class="enquiry__grid">
+    <label class="field field--wide">
+      <span>Topic</span>
+      <select id="enq-topic" name="topic" required data-topic>
+        {enquiry.topics.map((t) => <option selected={t === topic}>{t}</option>)}
+      </select>
+    </label>
+    <label class="field">
+      <span>Name</span>
+      <input id="enq-name" name="name" autocomplete="name" required />
+    </label>
+    <label class="field">
+      <span>Organisation</span>
+      <input id="enq-org" name="organisation" autocomplete="organization" required />
+    </label>
+    <label class="field field--wide">
+      <span>Work email</span>
+      <input id="enq-email" name="email" type="email" autocomplete="email" required />
+    </label>
+    <div class="enquiry__payload" data-payload-fields hidden={topic !== payloadTopic}>
+      <label class="field field--wide">
+        <span>Field</span>
+        <select id="enq-field" name="field">
+          {enquiry.fields.map((t) => <option>{t}</option>)}
+        </select>
+      </label>
+      <label class="field">
+        <span>Time in orbit</span>
+        <select id="enq-duration" name="duration">
+          {enquiry.durations.map((t) => <option>{t}</option>)}
+        </select>
+      </label>
+      <label class="field">
+        <span>Earliest flight</span>
+        <select id="enq-window" name="window">
+          {enquiry.windows.map((t) => <option>{t}</option>)}
+        </select>
+      </label>
+    </div>
+    <label class="field field--wide">
+      <span>Your message</span>
+      <textarea id="enq-message" name="message" rows="4"></textarea>
+    </label>
+  </div>
+  <button class="btn btn--heat enquiry__send" type="submit">Send enquiry</button>
+  <p class="enquiry__status" role="status" data-status></p>
+</form>
+
+<script>
+  const form = document.querySelector<HTMLFormElement>('[data-enquiry]');
+  const status = form?.querySelector<HTMLElement>('[data-status]');
+  const topic = form?.querySelector<HTMLSelectElement>('[data-topic]');
+  const payload = form?.querySelector<HTMLElement>('[data-payload-fields]');
+  topic?.addEventListener('change', () => {
+    if (payload) payload.hidden = topic.value !== form?.dataset.payloadTopic;
+  });
+  form?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (!status) return;
+    if (!form.checkValidity()) {
+      const first = form.querySelector<HTMLElement>(':invalid');
+      status.textContent = 'Please complete your name, organisation and work email.';
+      status.dataset.state = 'error';
+      first?.focus();
+      return;
+    }
+    const data = new FormData(form);
+    status.textContent = `Thank you, ${data.get('name')}. This is a preview, so nothing has been sent. On the live site, your enquiry will reach the founding team.`;
+    status.dataset.state = 'ok';
+  });
+</script>
+
+<style>
+  .enquiry__payload {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+  }
+
+  @media (max-width: 36rem) {
+    .enquiry__payload {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

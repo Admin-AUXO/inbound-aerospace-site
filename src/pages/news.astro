@@ -1,0 +1,142 @@
+---
+import Base from '../layouts/Base.astro';
+import PageHero from '../components/heroes/NewsHero.astro';
+import NextChapter from '../components/NextChapter.astro';
+import { pages, news } from '../data/pages';
+import { abs } from '../lib/url';
+
+const page = pages.news;
+const schema = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    name: 'Inbound Aerospace news',
+    itemListElement: news.map((n, i) => ({ '@type': 'ListItem', position: i + 1, name: n.title, ...(n.href ? { url: n.href } : { url: abs(page.path) }) }))
+  }
+];
+const earlier = news.slice(1);
+const years = [...new Set(earlier.map((n) => n.date.slice(0, 4)))].map((year) => ({ year, items: earlier.filter((n) => n.date.startsWith(year)) }));
+---
+<Base page={page} schema={schema} markdown="/news.md">
+  <PageHero title="News and press" lede="Funding, test milestones, events and coverage, most recent first." />
+
+  <section class="zone zone--light" aria-label="News">
+    <div class="wrap">
+      <div class="timeline">
+        {years.map((g) => (
+          <section class="year" aria-label={g.year}>
+            <p class="year__mark" aria-hidden="true">{g.year}</p>
+            <ol class="feed">
+              {g.items.map((n) => (
+                <li>
+                  <time datetime={n.date} class="meta">{n.label}</time>
+                  <h2>{n.title}</h2>
+                  <p>{n.text}</p>
+                  {n.href && <a class="ref" href={n.href} target="_blank" rel="noopener">Read on {n.source}</a>}
+                </li>
+              ))}
+            </ol>
+          </section>
+        ))}
+      </div>
+    </div>
+  </section>
+  <NextChapter page={pages.careers} line="Help build the vehicle in Chennai." />
+</Base>
+
+<style>
+  .timeline {
+    border-top: 1px solid var(--ink);
+  }
+
+  .year {
+    display: grid;
+    grid-template-columns: minmax(8rem, 3fr) minmax(0, 9fr);
+    gap: clamp(1.5rem, 4vw, 4rem);
+    padding-block: clamp(2rem, 4vw, 3.5rem);
+    border-bottom: 1px solid var(--rule-light);
+  }
+
+  .year__mark {
+    position: sticky;
+    top: 7rem;
+    align-self: start;
+    font-family: var(--display);
+    font-stretch: 108%;
+    font-size: clamp(3.5rem, 8vw, 7rem);
+    font-weight: 300;
+    line-height: 0.9;
+    letter-spacing: -0.04em;
+    color: var(--ink);
+  }
+
+  .feed {
+    --hang: clamp(1.5rem, 3vw, 2.75rem);
+    list-style: none;
+    margin: 0;
+    padding: 0 0 0 var(--hang);
+    border-left: 1px solid var(--ink);
+    display: grid;
+    gap: clamp(2.25rem, 4vw, 3.25rem);
+  }
+
+  .feed li {
+    position: relative;
+    max-width: 46rem;
+  }
+
+  .feed li::before {
+    content: '';
+    position: absolute;
+    left: calc(-1 * var(--hang) - 4px);
+    top: 0.35rem;
+    width: 7px;
+    height: 7px;
+    background: var(--heat-2);
+  }
+
+  .feed time {
+    display: block;
+    color: var(--ink-soft);
+  }
+
+  .feed h2 {
+    margin-top: 0.7rem;
+    font-size: clamp(1.5rem, 2.6vw, 2.1rem);
+    letter-spacing: -0.02em;
+  }
+
+  .feed p {
+    margin-block: 0.8rem 1rem;
+    max-width: 62ch;
+    color: var(--ink-soft);
+  }
+
+  .ref {
+    font-size: 0.9375rem;
+    color: var(--ink-soft);
+    text-decoration-color: var(--rule-light);
+    text-underline-offset: 0.3em;
+  }
+
+  .ref::after {
+    content: ' \2197';
+  }
+
+  .ref:hover {
+    color: var(--heat-ink);
+    text-decoration-color: var(--heat-ink);
+  }
+
+  @media (max-width: 48rem) {
+    .year {
+      grid-template-columns: 1fr;
+      gap: 1.5rem;
+    }
+
+    .year__mark {
+      position: static;
+      font-size: 3.5rem;
+    }
+  }
+</style>

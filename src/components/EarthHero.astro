@@ -1,0 +1,373 @@
+---
+import { url } from '../lib/url';
+---
+<div class="earth" aria-hidden="true" hidden>
+  <canvas data-earth data-day={url('/earth-day.jpg')} data-night={url('/earth-lights.jpg')} data-brc={url('/earth-brc.jpg')}></canvas>
+</div>
+<p class="earth__caption" data-earth-caption></p>
+
+<script>
+  const canvas = document.querySelector<HTMLCanvasElement>('[data-earth]');
+  const wrap = canvas?.parentElement as HTMLElement | null;
+  const captionEl = document.querySelector<HTMLElement>('[data-earth-caption]');
+
+  const zones: Record<string, [number, number]> = {
+    'Asia/Kolkata': [13.08, 80.27], 'Asia/Calcutta': [13.08, 80.27], 'Asia/Dubai': [25.2, 55.27], 'Asia/Karachi': [24.86, 67.0], 'Asia/Dhaka': [23.81, 90.41],
+    'Asia/Bangkok': [13.75, 100.5], 'Asia/Jakarta': [-6.2, 106.85], 'Asia/Singapore': [1.35, 103.82], 'Asia/Hong_Kong': [22.32, 114.17], 'Asia/Shanghai': [31.23, 121.47],
+    'Asia/Manila': [14.6, 120.98], 'Asia/Tokyo': [35.68, 139.69], 'Asia/Seoul': [37.57, 126.98], 'Asia/Riyadh': [24.71, 46.68], 'Asia/Tehran': [35.69, 51.39],
+    'Asia/Jerusalem': [31.77, 35.22], 'Asia/Colombo': [6.93, 79.86], 'Asia/Kathmandu': [27.7, 85.32], 'Europe/Istanbul': [41.01, 28.98], 'Europe/Moscow': [55.75, 37.62],
+    'Europe/London': [51.51, -0.13], 'Europe/Dublin': [53.35, -6.26], 'Europe/Paris': [48.86, 2.35], 'Europe/Berlin': [52.52, 13.4], 'Europe/Madrid': [40.42, -3.7],
+    'Europe/Rome': [41.9, 12.5], 'Europe/Amsterdam': [52.37, 4.9], 'Europe/Zurich': [47.38, 8.54], 'Europe/Stockholm': [59.33, 18.07], 'Africa/Cairo': [30.04, 31.24],
+    'Africa/Lagos': [6.52, 3.38], 'Africa/Nairobi': [-1.29, 36.82], 'Africa/Johannesburg': [-26.2, 28.05], 'America/New_York': [40.71, -74.01], 'America/Chicago': [41.88, -87.63],
+    'America/Denver': [39.74, -104.99], 'America/Los_Angeles': [34.05, -118.24], 'America/Toronto': [43.65, -79.38], 'America/Mexico_City': [19.43, -99.13], 'America/Sao_Paulo': [-23.55, -46.63],
+    'America/Argentina/Buenos_Aires': [-34.6, -58.38], 'Australia/Sydney': [-33.87, 151.21], 'Australia/Perth': [-31.95, 115.86], 'Pacific/Auckland': [-36.85, 174.76]
+  };
+  const visitorZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const visitor: [number, number] = zones[visitorZone] ?? [20, Math.max(-180, Math.min(180, -new Date().getTimezoneOffset() / 4))];
+  document.documentElement.dataset.visitor = visitor.join(',');
+
+  const now = () => {
+    const o = import.meta.env.DEV ? new URLSearchParams(location.search).get('t') : null;
+    return o ? new Date(o) : new Date();
+  };
+
+  const clock = (d: Date, timeZone?: string) => new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone }).format(d);
+  const writeCaption = () => {
+    if (!captionEl) return;
+    const d = now();
+    const inIndia = visitorZone === 'Asia/Kolkata' || visitorZone === 'Asia/Calcutta';
+    captionEl.textContent = inIndia ? 'Lit as of ' + clock(d, 'Asia/Kolkata') + ' in Chennai' : 'Lit as of ' + clock(d) + ' your time · ' + clock(d, 'Asia/Kolkata') + ' in Chennai';
+    const readout = captionEl.closest('.hero')?.querySelector<HTMLElement>('.readout');
+    captionEl.style.bottom = (readout?.offsetHeight ?? 0) + 12 + 'px';
+  };
+  const scheduleCaption = () => {
+    writeCaption();
+    setTimeout(scheduleCaption, 60000 - (Date.now() % 60000) + 50);
+  };
+  scheduleCaption();
+  addEventListener('resize', writeCaption);
+
+  const sunSubpoint = (d: Date) => {
+    const start = Date.UTC(d.getUTCFullYear(), 0, 0);
+    const day = (d.getTime() - start) / 86400000;
+    const decl = -23.44 * Math.cos(((2 * Math.PI) / 365) * (day + 10));
+    const b = ((2 * Math.PI) / 364) * (day - 81);
+    const eot = 9.87 * Math.sin(2 * b) - 7.53 * Math.cos(b) - 1.5 * Math.sin(b);
+    const hours = d.getUTCHours() + d.getUTCMinutes() / 60 + d.getUTCSeconds() / 3600;
+    let lon = -(hours - 12) * 15 - eot / 4;
+    lon = ((((lon + 180) % 360) + 360) % 360) - 180;
+    return { lat: decl, lon };
+  };
+
+  const mode = document.documentElement.dataset.earthMode;
+  let started = false;
+  const go = () => {
+    if (started || !canvas) return;
+    started = true;
+    wrap?.removeAttribute('hidden');
+    const io = new IntersectionObserver(([e]) => {
+      if (e.isIntersecting) {
+        io.disconnect();
+        start();
+      }
+    });
+    io.observe(canvas);
+  };
+
+  const vert = `
+    varying vec2 vUv;
+    varying vec3 vNormalW;
+    varying vec3 vPosW;
+    void main() {
+      vUv = uv;
+      vNormalW = normalize(mat3(modelMatrix) * normal);
+      vec4 w = modelMatrix * vec4(position, 1.0);
+      vPosW = w.xyz;
+      gl_Position = projectionMatrix * viewMatrix * w;
+    }
+  `;
+
+  const earthFrag = `
+    uniform sampler2D dayMap;
+    uniform sampler2D nightMap;
+    uniform sampler2D brcMap;
+    uniform vec3 sunDir;
+    varying vec2 vUv;
+    varying vec3 vNormalW;
+    varying vec3 vPosW;
+    void main() {
+      vec3 n = normalize(vNormalW);
+      vec3 v = normalize(cameraPosition - vPosW);
+      float sunDot = dot(n, sunDir);
+      float day = smoothstep(-0.18, 0.32, sunDot);
+      vec3 brc = texture2D(brcMap, vUv).rgb;
+      float rough = brc.g;
+      vec3 dayCol = pow(texture2D(dayMap, vUv).rgb, vec3(1.08)) * 1.05;
+      vec3 nightCol = pow(texture2D(nightMap, vUv).rgb, vec3(1.4)) * vec3(1.6, 1.25, 0.85) * 1.4;
+      vec3 h = normalize(sunDir + v);
+      float spec = pow(max(dot(n, h), 0.0), 140.0) * (1.0 - rough) * day * 0.35;
+      float fres = pow(1.0 - max(dot(n, v), 0.0), 2.6);
+      float dusk = smoothstep(-0.25, 0.0, sunDot) * (1.0 - smoothstep(0.0, 0.3, sunDot));
+      vec3 atmo = mix(vec3(0.30, 0.62, 1.0), vec3(0.95, 0.42, 0.14), dusk);
+      vec3 col = mix(nightCol, dayCol * (0.25 + 0.95 * max(sunDot, 0.0)), day);
+      col += spec * vec3(1.0, 0.92, 0.8);
+      col += atmo * pow(fres, 1.6) * 0.45 * smoothstep(-0.3, 0.4, sunDot);
+      gl_FragColor = vec4(col, 1.0);
+    }
+  `;
+
+  const cloudFrag = `
+    uniform sampler2D brcMap;
+    uniform vec3 sunDir;
+    uniform float shift;
+    varying vec2 vUv;
+    varying vec3 vNormalW;
+    void main() {
+      vec3 n = normalize(vNormalW);
+      float sunDot = dot(n, sunDir);
+      float c = smoothstep(0.18, 0.85, texture2D(brcMap, vec2(vUv.x + shift, vUv.y)).b);
+      float light = smoothstep(-0.15, 0.45, sunDot);
+      vec3 col = mix(vec3(0.05, 0.06, 0.09), vec3(1.0), light);
+      gl_FragColor = vec4(col, c * (0.12 + 0.78 * light));
+    }
+  `;
+
+  const atmoFrag = `
+    uniform vec3 sunDir;
+    varying vec3 vNormalW;
+    varying vec3 vPosW;
+    void main() {
+      vec3 n = normalize(vNormalW);
+      vec3 v = normalize(cameraPosition - vPosW);
+      float f = 1.0 - abs(dot(n, v));
+      float rim = pow(f, 7.0);
+      float lit = smoothstep(-0.35, 0.3, dot(n, sunDir));
+      vec3 col = mix(vec3(0.2, 0.36, 0.75), vec3(0.62, 0.8, 1.0), lit);
+      gl_FragColor = vec4(col * rim * lit * 0.9, 1.0);
+    }
+  `;
+
+  const start = async () => {
+    if (!canvas) return;
+    const THREE = await import('three');
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let renderer: InstanceType<typeof THREE.WebGLRenderer>;
+    try {
+      renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
+    } catch {
+      return;
+    }
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(28, 1, 0.1, 100);
+    const camBase = new THREE.Vector3(0, 0, 4.8);
+    camera.position.copy(camBase);
+
+    const loader = new THREE.TextureLoader();
+    const [dayMap, nightMap, brcMap] = await Promise.all(
+      [canvas.dataset.day!, canvas.dataset.night!, canvas.dataset.brc!].map((u) => loader.loadAsync(u))
+    );
+    dayMap.colorSpace = THREE.SRGBColorSpace;
+    nightMap.colorSpace = THREE.SRGBColorSpace;
+    for (const t of [dayMap, nightMap, brcMap]) t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    brcMap.wrapS = THREE.RepeatWrapping;
+
+    const sphere = new THREE.SphereGeometry(1, 160, 160);
+    const uvs = sphere.getAttribute('uv');
+    const pos = sphere.getAttribute('position');
+    const dir = (lat: number, lon: number) => {
+      const u = (lon + 180) / 360;
+      const v = (lat + 90) / 180;
+      let best = 0;
+      let bestD = Infinity;
+      for (let i = 0; i < uvs.count; i++) {
+        const d = (uvs.getX(i) - u) ** 2 + (uvs.getY(i) - v) ** 2;
+        if (d < bestD) {
+          bestD = d;
+          best = i;
+        }
+      }
+      return new THREE.Vector3(pos.getX(best), pos.getY(best), pos.getZ(best)).normalize();
+    };
+
+    const sunDir = new THREE.Vector3(0, 0, 1);
+    const sunLocal = new THREE.Vector3();
+    const rad = Math.PI / 180;
+    const updateSun = () => {
+      const p = sunSubpoint(now());
+      sunLocal.set(Math.cos(p.lat * rad) * Math.cos(p.lon * rad), Math.sin(p.lat * rad), -Math.cos(p.lat * rad) * Math.sin(p.lon * rad));
+    };
+    updateSun();
+    const globe = new THREE.Group();
+    scene.add(globe);
+    const spin = new THREE.Group();
+    globe.add(spin);
+
+    spin.add(
+      new THREE.Mesh(
+        sphere,
+        new THREE.ShaderMaterial({ uniforms: { dayMap: { value: dayMap }, nightMap: { value: nightMap }, brcMap: { value: brcMap }, sunDir: { value: sunDir } }, vertexShader: vert, fragmentShader: earthFrag })
+      )
+    );
+    const cloudUniforms = { brcMap: { value: brcMap }, sunDir: { value: sunDir }, shift: { value: 0 } };
+    spin.add(
+      new THREE.Mesh(
+        new THREE.SphereGeometry(1.006, 128, 128),
+        new THREE.ShaderMaterial({ uniforms: cloudUniforms, vertexShader: vert, fragmentShader: cloudFrag, transparent: true, depthWrite: false })
+      )
+    );
+    globe.add(
+      new THREE.Mesh(
+        new THREE.SphereGeometry(1.022, 96, 96),
+        new THREE.ShaderMaterial({ uniforms: { sunDir: { value: sunDir } }, vertexShader: vert, fragmentShader: atmoFrag, side: THREE.BackSide, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })
+      )
+    );
+
+    const R = 1.063;
+    const chennai = dir(13.08, 80.27);
+    const A = dir(4, 58);
+    const toward = dir(38, 128);
+    const B = toward.clone().sub(A.clone().multiplyScalar(toward.dot(A))).normalize();
+    const orbitPoint = (t: number) => A.clone().multiplyScalar(Math.cos(t) * R).add(B.clone().multiplyScalar(Math.sin(t) * R));
+    spin.add(
+      new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints(Array.from({ length: 361 }, (_, i) => orbitPoint((i / 360) * Math.PI * 2))),
+        new THREE.LineBasicMaterial({ color: 0xecebe6, transparent: true, opacity: 0.16 })
+      )
+    );
+    const glide = new THREE.CatmullRomCurve3(
+      Array.from({ length: 140 }, (_, i) => {
+        const k = i / 139;
+        return A.clone().lerp(chennai, k).normalize().multiplyScalar(1.003 + 0.06 * (1 - Math.pow(k, 2.2)));
+      })
+    );
+    const heat = new THREE.Color('#f89300');
+    const tracePts = glide.getPoints(200);
+    const traceGeo = new THREE.BufferGeometry().setFromPoints(tracePts);
+    traceGeo.setAttribute('color', new THREE.Float32BufferAttribute(tracePts.flatMap((_, i) => [0.93, 0.92, 0.9, 0.05 + 0.75 * Math.pow(i / 200, 1.6)]), 4));
+    spin.add(new THREE.Line(traceGeo, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false })));
+    const site = new THREE.Mesh(new THREE.SphereGeometry(0.0065, 16, 16), new THREE.MeshBasicMaterial({ color: heat }));
+    site.position.copy(chennai.clone().multiplyScalar(1.004));
+    spin.add(site);
+    const you = new THREE.Mesh(new THREE.SphereGeometry(0.0045, 12, 12), new THREE.MeshBasicMaterial({ color: 0xefede8 }));
+    you.position.copy(dir(visitor[0], visitor[1]).multiplyScalar(1.004));
+    spin.add(you);
+    const craft = new THREE.Mesh(new THREE.SphereGeometry(0.006, 16, 16), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+    spin.add(craft);
+
+    let baseYaw = 0;
+    const layout = () => {
+      const w = canvas.clientWidth;
+      const h = canvas.clientHeight;
+      renderer.setSize(w, h, false);
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      const narrow = w / h < 1;
+      globe.position.set(narrow ? 0.25 : 1.62, narrow ? -1.05 : -0.32, 0);
+      globe.scale.setScalar(narrow ? 0.85 : 1.0);
+      const view = camBase.clone().sub(globe.position).normalize();
+      baseYaw = -Math.atan2(chennai.x, chennai.z) + Math.atan2(view.x, view.z) - (narrow ? 0.05 : 0.22);
+      spin.rotation.set(0.2, baseYaw, 0, 'XYZ');
+    };
+    layout();
+    new ResizeObserver(layout).observe(canvas);
+
+    const pointer = { x: 0, y: 0, tx: 0, ty: 0 };
+    window.addEventListener('pointermove', (e) => {
+      pointer.tx = (e.clientX / innerWidth - 0.5) * 0.12;
+      pointer.ty = (e.clientY / innerHeight - 0.5) * 0.08;
+    });
+
+    let t = 0.4;
+    let raf = 0;
+    let last = 0;
+    let intersecting = true;
+    const draw = () => {
+      craft.position.copy(orbitPoint(t));
+      const scrolled = Math.min(window.scrollY / innerHeight, 1);
+      spin.rotation.y = baseYaw + Math.sin(t * 0.12) * 0.015 + scrolled * 0.12;
+      sunDir.copy(sunLocal).applyQuaternion(spin.quaternion);
+      cloudUniforms.shift.value = t * 0.0025;
+      pointer.x += (pointer.tx - pointer.x) * 0.05;
+      pointer.y += (pointer.ty - pointer.y) * 0.05;
+      camera.position.set(camBase.x + pointer.x, camBase.y - pointer.y, camBase.z);
+      camera.lookAt(0, 0, 0);
+      renderer.render(scene, camera);
+    };
+    const loop = (ts: number) => {
+      t += Math.min((ts - last) / 1000, 0.05) * 0.09;
+      last = ts;
+      draw();
+      raf = requestAnimationFrame(loop);
+    };
+    const sync = () => {
+      cancelAnimationFrame(raf);
+      raf = 0;
+      if (reduce || !intersecting || document.hidden) return;
+      last = performance.now();
+      raf = requestAnimationFrame(loop);
+    };
+    const minute = setInterval(() => {
+      updateSun();
+      if (!raf) draw();
+    }, 60000);
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) updateSun();
+      sync();
+    });
+    addEventListener('pageshow', (e) => {
+      if (e.persisted) sync();
+    });
+    addEventListener('pagehide', (e) => {
+      if (e.persisted) return;
+      cancelAnimationFrame(raf);
+      clearInterval(minute);
+      renderer.dispose();
+      renderer.forceContextLoss();
+    });
+    draw();
+    canvas.classList.add('is-ready');
+    if (reduce) return;
+    new IntersectionObserver(([e]) => {
+      intersecting = e.isIntersecting;
+      sync();
+    }).observe(canvas);
+  };
+
+  if (mode === 'hero') go();
+  addEventListener('earth:fallback', go);
+</script>
+
+<style>
+  .earth {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(110% 90% at 88% 70%, #0d1119 0%, #0a0b0d 62%);
+  }
+
+  canvas {
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    transition: opacity 1.8s var(--ease);
+  }
+
+  canvas.is-ready {
+    opacity: 1;
+  }
+
+  .earth__caption {
+    position: absolute;
+    left: calc((100% - var(--wrap)) / 2);
+    bottom: 5.5rem;
+    margin: 0;
+    z-index: 1;
+    font-family: var(--text);
+    font-size: 0.75rem;
+    letter-spacing: 0.01em;
+    color: var(--ink-dim);
+    text-shadow: 0 0 8px rgb(0 0 0 / 0.85), 0 0 2px rgb(0 0 0 / 0.9);
+    pointer-events: none;
+  }
+</style>
